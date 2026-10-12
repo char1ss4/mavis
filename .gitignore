@@ -16,6 +16,7 @@ env/
 # Local secrets and private data
 .env
 watchlist.yaml
+CLAUDE.local.md
 
 # Editors / OS
 .vscode/

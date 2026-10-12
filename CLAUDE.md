@@ -1,0 +1,44 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project status
+
+Scaffold stage: most functions in `edith/`, `jarvis/` and `cli.py` are typed stubs that `raise NotImplementedError`. Their docstrings are the spec (including API quirks and edge cases), so read the docstring before implementing and keep the existing signatures. Python 3.10+ (uses `X | None` syntax).
+
+## Commands
+
+```bash
+docker compose up -d                 # MySQL 8 on 127.0.0.1:${MYSQL_PORT:-3306}; needs .env filled in
+pip install -r requirements.txt      # into .venv (Windows: .venv\Scripts\activate)
+pytest                               # all tests
+pytest tests/test_scoring.py::test_placeholder   # single test
+python cli.py poll --days 7          # ingest NVD + KEV + EPSS into MySQL
+python cli.py score                  # score stored CVEs against watchlist.yaml
+python cli.py brief                  # LLM patch briefing for top-scored CVEs
+```
+
+`db/schema.sql` is applied only when the MySQL volume is empty (via `docker-entrypoint-initdb.d`). Schema changes require `docker compose down -v`, which deletes all stored data — confirm with the user first.
+
+No linter/formatter is configured.
+
+## Architecture
+
+Pipeline: `poll` → `score` → `brief`, with MySQL as the hand-off between stages.
+
+- **EDITH** (`edith/`) — ingestion and local scoring.
+  - `feeds/nvd.py`, `feeds/kev.py`, `feeds/epss.py`: clients for NVD CVE API 2.0, CISA KEV, FIRST EPSS. NVD rules live in the `fetch_recent_cves` docstring (key in `apiKey` header, 0.6s between pages, retry on 403/503, max 120-day date windows).
+  - `scoring.py`: `score_cve` combines CVSS, EPSS, KEV membership and watchlist match. A missing CVSS score must count as a neutral mid-range value, not zero.
+  - `watchlist.py`: loads `watchlist.yaml` (vendor/product/version entries) and matches CVEs against it.
+  - `config.py` loads `.env` via python-dotenv at import time; `db.py` opens connections with `mysql-connector-python`.
+- **JARVIS** (`jarvis/`) — LLM layer using Gemini Flash through `google-genai`.
+  - `boundary.py`: `build_llm_payload` is the **only** place that builds outbound LLM data. It allowlists public CVE fields (ID, description, CVSS, KEV status, EPSS).
+  - `digest.py`: `generate_digest` takes only the sanitised payload and uses structured output (a response schema); results go to `digests.output_json`.
+
+### Database (`db/schema.sql`)
+
+Tables `cves`, `kev_entries`, `epss_scores` (keyed by `cve_id, score_date`) and `digests`. There are intentionally no foreign keys from KEV/EPSS to `cves`, because those feeds reference CVEs older than the NVD polling window.
+
+## Privacy boundary (hard rule)
+
+The watchlist, match results and local priority scores must never leave the machine. Every LLM call goes through `jarvis/boundary.py`; never pass raw records to `jarvis/digest.py` or add another path to an external service. `.env` and `watchlist.yaml` are gitignored. Use `watchlist.example.yaml` / `.env.example` as templates and don't commit the real files.

@@ -1,6 +1,7 @@
 requests
 mysql-connector-python
 python-dotenv
+truststore
 pyyaml
 google-genai
 pytest

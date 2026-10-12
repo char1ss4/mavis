@@ -5,7 +5,12 @@ Secrets live in .env (never committed). See .env.example for the full list.
 
 import os
 
+import truststore
 from dotenv import load_dotenv
+
+# Verify TLS against the OS certificate store instead of certifi's bundle, so
+# HTTPS works behind antivirus/proxy TLS inspection that Windows trusts.
+truststore.inject_into_ssl()
 
 load_dotenv()
 
