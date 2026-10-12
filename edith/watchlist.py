@@ -1,0 +1,26 @@
+"""Local watchlist of software you run. Never leaves the machine."""
+
+
+def load_watchlist(path: str = "watchlist.yaml") -> list[dict]:
+    """Load watchlist entries from a YAML file.
+
+    Args:
+        path: Path to the local watchlist (see watchlist.example.yaml).
+
+    Returns:
+        Watchlist entries as dicts.
+    """
+    raise NotImplementedError
+
+
+def match_cve(cve: dict, watchlist: list[dict]) -> list[dict]:
+    """Return the watchlist entries that a CVE affects.
+
+    Args:
+        cve: A CVE record (NVD format).
+        watchlist: Entries returned by :func:`load_watchlist`.
+
+    Returns:
+        Matching watchlist entries; empty if none match.
+    """
+    raise NotImplementedError

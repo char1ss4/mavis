@@ -1,0 +1,7 @@
+requests
+mysql-connector-python
+python-dotenv
+pyyaml
+google-genai
+pytest
+# streamlit  # optional dashboard

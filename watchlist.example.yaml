@@ -1,0 +1,19 @@
+# Copy to watchlist.yaml (gitignored) and list the software you actually run.
+# This file never leaves your machine.
+watchlist:
+  - name: flask
+    vendor: palletsprojects
+    product: flask
+    version: "3.0"
+  - name: mysql
+    vendor: oracle
+    product: mysql
+    version: "8.0"
+  - name: docker
+    vendor: docker
+    product: docker
+    version: "27"
+  - name: mosquitto
+    vendor: eclipse
+    product: mosquitto
+    version: "2.0"
