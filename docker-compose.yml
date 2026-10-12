@@ -1,7 +1,9 @@
+name: mavis
+
 services:
   mysql:
     image: mysql:8.0
-    container_name: jarvis-edith-mysql
+    container_name: mavis-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
