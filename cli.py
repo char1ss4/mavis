@@ -1,4 +1,4 @@
-"""JARVIS/EDITH command-line entry point."""
+"""MAVIS command-line entry point."""
 
 import argparse
 
@@ -19,7 +19,7 @@ def cmd_brief(args: argparse.Namespace) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="jarvis-edith", description=__doc__)
+    parser = argparse.ArgumentParser(prog="mavis", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
     poll = sub.add_parser("poll", help=cmd_poll.__doc__)

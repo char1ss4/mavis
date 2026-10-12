@@ -3,11 +3,11 @@
 import mysql.connector
 from mysql.connector.connection import MySQLConnection
 
-from edith import config
+from mavis import config
 
 
 def get_connection() -> MySQLConnection:
-    """Open a new connection to the JARVIS/EDITH database using values from config."""
+    """Open a new connection to the MAVIS database using values from config."""
     return mysql.connector.connect(
         host=config.MYSQL_HOST,
         port=config.MYSQL_PORT,

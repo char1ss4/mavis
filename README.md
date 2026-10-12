@@ -1,6 +1,8 @@
-# JARVIS/EDITH
+# MAVIS
 
-Personal threat-intelligence assistant: EDITH pulls CVEs from NVD, CISA KEV and EPSS into MySQL and scores them against your local watchlist; JARVIS turns the results into a plain-English patch briefing with Gemini Flash.
+*Mostly Accurate Vulnerability Intelligence System*
+
+Personal threat-intelligence assistant: MAVIS pulls CVEs from NVD, CISA KEV and EPSS into MySQL, scores them against your local watchlist, and turns the results into a plain-English patch briefing with Gemini Flash.
 
 ## Setup
 
@@ -18,4 +20,4 @@ pytest
 
 ## Privacy boundary
 
-Only public CVE fields are sent to the LLM. Your watchlist, match results and local scores never leave the machine. `jarvis/boundary.py` is the single place that builds the outbound payload. `.env` and `watchlist.yaml` are gitignored.
+Only public CVE fields are sent to the LLM. Your watchlist, match results and local scores never leave the machine. `mavis/briefing/boundary.py` is the single place that builds the outbound payload. `.env` and `watchlist.yaml` are gitignored.

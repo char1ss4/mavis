@@ -1,4 +1,4 @@
-from edith import scoring
+from mavis.scoring import scoring
 
 
 def test_placeholder():

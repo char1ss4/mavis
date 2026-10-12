@@ -2,9 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**MAVIS** (Mostly Accurate Vulnerability Intelligence System): a personal threat-intelligence assistant in a single `mavis` package.
+
 ## Project status
 
-Scaffold stage: most functions in `edith/`, `jarvis/` and `cli.py` are typed stubs that `raise NotImplementedError`. Their docstrings are the spec (including API quirks and edge cases), so read the docstring before implementing and keep the existing signatures. Python 3.10+ (uses `X | None` syntax).
+Scaffold stage: most functions in `mavis/` and `cli.py` are typed stubs that `raise NotImplementedError`. Their docstrings are the spec (including API quirks and edge cases), so read the docstring before implementing and keep the existing signatures. Python 3.10+ (uses `X | None` syntax).
 
 ## Commands
 
@@ -24,16 +26,22 @@ No linter/formatter is configured.
 
 ## Architecture
 
-Pipeline: `poll` → `score` → `brief`, with MySQL as the hand-off between stages.
+```
+cli.py poll  ──►  mavis/ingest/    NVD + KEV + EPSS  ──►  MySQL
+cli.py score ──►  mavis/scoring/   MySQL + watchlist.yaml ──► local scores (stay local)
+cli.py brief ──►  mavis/briefing/  boundary.py (allowlist) ──► digest.py ──► Gemini ──► digests table
+```
 
-- **EDITH** (`edith/`) — ingestion and local scoring.
-  - `feeds/nvd.py`, `feeds/kev.py`, `feeds/epss.py`: clients for NVD CVE API 2.0, CISA KEV, FIRST EPSS. NVD rules live in the `fetch_recent_cves` docstring (key in `apiKey` header, 0.6s between pages, retry on 403/503, max 120-day date windows).
+MySQL is the hand-off between stages.
+
+- `mavis/ingest/` — `nvd.py`, `kev.py`, `epss.py`: clients for NVD CVE API 2.0, CISA KEV, FIRST EPSS. NVD rules live in the `fetch_recent_cves` docstring (key in `apiKey` header, 0.6s between pages, retry on 403/503, max 120-day date windows).
+- `mavis/scoring/` — local only.
   - `scoring.py`: `score_cve` combines CVSS, EPSS, KEV membership and watchlist match. A missing CVSS score must count as a neutral mid-range value, not zero.
   - `watchlist.py`: loads `watchlist.yaml` (vendor/product/version entries) and matches CVEs against it.
-  - `config.py` loads `.env` via python-dotenv at import time; `db.py` opens connections with `mysql-connector-python`.
-- **JARVIS** (`jarvis/`) — LLM layer using Gemini Flash through `google-genai`.
+- `mavis/briefing/` — LLM layer using Gemini Flash through `google-genai`.
   - `boundary.py`: `build_llm_payload` is the **only** place that builds outbound LLM data. It allowlists public CVE fields (ID, description, CVSS, KEV status, EPSS).
   - `digest.py`: `generate_digest` takes only the sanitised payload and uses structured output (a response schema); results go to `digests.output_json`.
+- `mavis/config.py` loads `.env` via python-dotenv at import time and calls `truststore.inject_into_ssl()` so HTTPS uses the OS certificate store; anything that does network I/O must import it first. `mavis/db.py` opens connections with `mysql-connector-python`.
 
 ### Database (`db/schema.sql`)
 
@@ -41,4 +49,4 @@ Tables `cves`, `kev_entries`, `epss_scores` (keyed by `cve_id, score_date`) and 
 
 ## Privacy boundary (hard rule)
 
-The watchlist, match results and local priority scores must never leave the machine. Every LLM call goes through `jarvis/boundary.py`; never pass raw records to `jarvis/digest.py` or add another path to an external service. `.env` and `watchlist.yaml` are gitignored. Use `watchlist.example.yaml` / `.env.example` as templates and don't commit the real files.
+The watchlist, match results and local priority scores must never leave the machine. Every LLM payload goes through `mavis/briefing/boundary.py`; never pass raw records to `mavis/briefing/digest.py` or add another path to an external service. `.env` and `watchlist.yaml` are gitignored. Use `watchlist.example.yaml` / `.env.example` as templates and don't commit the real files.

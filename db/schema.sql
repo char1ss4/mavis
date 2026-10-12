@@ -1,4 +1,4 @@
--- JARVIS/EDITH schema
+-- MAVIS schema
 -- Loaded automatically by the MySQL container on first start into $MYSQL_DATABASE.
 -- No foreign keys from kev_entries / epss_scores to cves: KEV and EPSS can
 -- reference CVEs older than the NVD polling window.

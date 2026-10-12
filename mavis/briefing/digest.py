@@ -8,7 +8,7 @@ def generate_digest(payload: list[dict], model: str) -> dict:
     so the result can be validated and stored in ``digests.output_json``.
 
     Args:
-        payload: Output of :func:`jarvis.boundary.build_llm_payload`. Never
+        payload: Output of :func:`mavis.briefing.boundary.build_llm_payload`. Never
             pass unsanitised records here.
         model: Gemini Flash model name.
 
