@@ -52,7 +52,25 @@ def test_fetch_pages_until_total_results(monkeypatch: pytest.MonkeyPatch) -> Non
     assert len(records) == 5
 
 
-def test_fetch_recent_kev_cves_filterdef test_parse_cve_without_cvss_stores_null_not_zero() -> None:
+def test_fetch_recent_kev_cves_filters_by_kev_date(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[dict[str, Any]] = []
+
+    def fake_get(params: dict[str, Any]) -> dict[str, Any]:
+        seen.append(params)
+        return {'vulnerabilities': [{'cve': {'id': 'CVE-2015-3306'}}], 'totalResults': 1}
+
+    monkeypatch.setattr(nvd, '_get_with_retry', fake_get)
+    monkeypatch.setattr(nvd.time, 'sleep', _no_sleep)
+
+    records = nvd.fetch_recent_kev_cves(days=30)
+
+    assert len(seen) == 1
+    assert {'kevStartDate', 'kevEndDate'} <= seen[0].keys()
+    assert 'pubStartDate' not in seen[0]
+    assert records == [{'id': 'CVE-2015-3306'}]
+
+
+def test_parse_cve_without_cvss_stores_null_not_zero() -> None:
     raw: dict[str, Any] = {
         'id': 'CVE-2026-0001',
         'published': '2026-10-12T10:15:00.000',

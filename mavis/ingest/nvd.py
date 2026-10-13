@@ -62,6 +62,24 @@ def fetch_recent_cves(days: int) -> list[dict[str, Any]]:
     Returns:
         Raw CVE records (the ``vulnerabilities[].cve`` objects) as dicts.
     """
+    return _fetch_by_date_range('pubStartDate', 'pubEndDate', days)
+
+
+def fetch_recent_kev_cves(days: int) -> list[dict[str, Any]]:
+    """Fetch CVEs that CISA added to KEV in the last ``days`` days, however old.
+
+    KEV usually lists a CVE long after it was published, so the published-date
+    poll almost never catches one. NVD's kevStartDate/kevEndDate filter does,
+    with the same 120-day window limit.
+
+    Returns:
+        Raw CVE records (the ``vulnerabilities[].cve`` objects) as dicts.
+    """
+    return _fetch_by_date_range('kevStartDate', 'kevEndDate', days)
+
+
+def _fetch_by_date_range(start_param: str, end_param: str, days: int) -> list[dict[str, Any]]:
+    """Page through every CVE whose ``start_param``/``end_param`` date is in the last ``days`` days."""
     # Calculate the start and end dates for the query
     end_date = datetime.datetime.now(datetime.timezone.utc)
     start_date = end_date - datetime.timedelta(days=days)
@@ -77,8 +95,8 @@ def fetch_recent_cves(days: int) -> list[dict[str, Any]]:
         start_index = 0
         while True:
             data = _get_with_retry({
-                'pubStartDate': current_start_date.strftime(DATE_FORMAT),
-                'pubEndDate': current_end_date.strftime(DATE_FORMAT),
+                start_param: current_start_date.strftime(DATE_FORMAT),
+                end_param: current_end_date.strftime(DATE_FORMAT),
                 'resultsPerPage': PAGE_SIZE,
                 'startIndex': start_index,
             })

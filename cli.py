@@ -40,6 +40,14 @@ def cmd_poll(args: argparse.Namespace) -> None:
     unscored = sum(1 for row in rows if row['cvss_score'] is None)
     print(f"NVD: saved {saved} CVEs ({unscored} without a CVSS score yet)")
 
+    # KEV lists CVEs long after publication, so fetch those separately by KEV date
+    print(f"Polling NVD for CVEs added to KEV in the last {args.kev_days} day(s)...")
+    with timer.stage("NVD KEV-date fetch"):
+        kev_cve_rows = [nvd.parse_cve(cve) for cve in nvd.fetch_recent_kev_cves(args.kev_days)]
+    with timer.stage("NVD KEV-date save"):
+        saved_kev_cves = nvd.save_cves(kev_cve_rows)
+    print(f"NVD: saved {saved_kev_cves} recently added KEV CVEs")
+
     print("Downloading the CISA KEV catalog...")
     with timer.stage("KEV fetch"):
         kev_rows = [kev.parse_kev_entry(entry) for entry in kev.fetch_kev()]
@@ -79,6 +87,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     poll = sub.add_parser("poll", help=cmd_poll.__doc__)
     poll.add_argument("--days", type=int, default=7, help="NVD lookback window in days")
+    poll.add_argument("--kev-days", type=int, default=30,
+                      help="also fetch CVEs added to KEV in this many days")
     poll.add_argument("--timing", action="store_true",
                       help="print how long each fetch and save stage took")
     poll.set_defaults(func=cmd_poll)
