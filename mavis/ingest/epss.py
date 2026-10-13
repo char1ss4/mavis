@@ -19,13 +19,15 @@ MAX_RETRIES = 5
 def _get_with_retry(params: dict[str, Any]) -> dict[str, Any]:
     """GET one batch from EPSS, backing off and retrying on 429/503."""
     wait = 2
+    status_code = None
     for attempt in range(MAX_RETRIES):
         response = requests.get(
             EPSS_URL, params=params, headers={'User-Agent': 'MAVIS EPSS Client'}, timeout=30,
         )
 
         # 429 = over FIRST's rate limit, 503 = temporarily unavailable
-        if response.status_code not in (429, 503):
+        status_code = response.status_code
+        if status_code not in (429, 503):
             response.raise_for_status()
             return response.json()
 
@@ -34,7 +36,7 @@ def _get_with_retry(params: dict[str, Any]) -> dict[str, Any]:
             wait *= 2  # 2s, 4s, 8s, 16s
 
     raise RuntimeError(
-        f"EPSS still returning HTTP {response.status_code} after {MAX_RETRIES} attempts"
+        f"EPSS still returning HTTP {status_code} after {MAX_RETRIES} attempts"
     )
 
 

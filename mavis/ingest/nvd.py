@@ -28,11 +28,13 @@ def _get_with_retry(params: dict[str, Any]) -> dict[str, Any]:
     }
 
     wait = 2
+    status_code = None
     for attempt in range(MAX_RETRIES):
         response = requests.get(NVD_URL, params=params, headers=headers, timeout=30)
 
         # NVD uses 403 and 503 for throttling/overload, so those are worth retrying
-        if response.status_code not in (403, 503):
+        status_code = response.status_code
+        if status_code not in (403, 503):
             response.raise_for_status()  # Raise an error for other HTTP errors
             return response.json()
 
@@ -41,7 +43,7 @@ def _get_with_retry(params: dict[str, Any]) -> dict[str, Any]:
             wait *= 2  # 2s, 4s, 8s, 16s
 
     raise RuntimeError(
-        f"NVD still returning HTTP {response.status_code} after {MAX_RETRIES} attempts"
+        f"NVD still returning HTTP {status_code} after {MAX_RETRIES} attempts"
     )
 
 
