@@ -1,7 +1,9 @@
 """Patch briefing generation via Gemini Flash (google-genai)."""
 
+from typing import Any
 
-def generate_digest(payload: list[dict], model: str) -> dict:
+
+def generate_digest(payload: list[dict[str, Any]], model: str) -> dict[str, Any]:
     """Generate a plain-English patch briefing from a sanitised CVE payload.
 
     Uses the google-genai client with structured output (a response schema)

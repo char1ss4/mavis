@@ -1,7 +1,9 @@
 """Privacy boundary between local data and the external LLM."""
 
+from typing import Any
 
-def build_llm_payload(cves: list[dict]) -> list[dict]:
+
+def build_llm_payload(cves: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Reduce CVE records to the fields allowed to leave the machine.
 
     Only public CVE fields (e.g. CVE ID, description, CVSS, KEV status, EPSS)

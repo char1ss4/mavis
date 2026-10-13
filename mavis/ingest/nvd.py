@@ -2,6 +2,7 @@
 import datetime
 import json
 import time
+from typing import Any
 
 # config must be imported before any network I/O (loads .env, OS trust store)
 from mavis import config
@@ -19,7 +20,7 @@ MAX_RETRIES = 5
 CVSS_PREFERENCE = ('cvssMetricV31', 'cvssMetricV30', 'cvssMetricV40', 'cvssMetricV2')
 
 
-def _get_with_retry(params: dict) -> dict:
+def _get_with_retry(params: dict[str, Any]) -> dict[str, Any]:
     """GET one page from NVD, backing off and retrying on 403/503 throttling."""
     headers = {
         'apiKey': config.NVD_API_KEY,
@@ -44,7 +45,7 @@ def _get_with_retry(params: dict) -> dict:
     )
 
 
-def fetch_recent_cves(days: int) -> list[dict]:
+def fetch_recent_cves(days: int) -> list[dict[str, Any]]:
     """Fetch CVEs published in the last ``days`` days from the NVD CVE API 2.0.
 
     Implementation notes:
@@ -63,7 +64,7 @@ def fetch_recent_cves(days: int) -> list[dict]:
     end_date = datetime.datetime.now(datetime.timezone.utc)
     start_date = end_date - datetime.timedelta(days=days)
 
-    cve_records = []
+    cve_records: list[dict[str, Any]] = []
 
     # Split the date range into chunks of at most 120 days
     current_start_date = start_date
@@ -96,7 +97,7 @@ def fetch_recent_cves(days: int) -> list[dict]:
     return cve_records
 
 
-def _pick_cvss(metrics: dict) -> tuple[float | None, str | None, str | None]:
+def _pick_cvss(metrics: dict[str, Any]) -> tuple[float | None, str | None, str | None]:
     """Return (score, severity, source) for the preferred CVSS metric, or all None."""
     for version in CVSS_PREFERENCE:
         entries = metrics.get(version, [])
@@ -116,7 +117,7 @@ def _pick_cvss(metrics: dict) -> tuple[float | None, str | None, str | None]:
     return None, None, None
 
 
-def parse_cve(cve: dict) -> dict:
+def parse_cve(cve: dict[str, Any]) -> dict[str, Any]:
     """Flatten one raw NVD CVE record into a row for the ``cves`` table."""
     description = next(
         (d['value'] for d in cve.get('descriptions', []) if d.get('lang') == 'en'),
@@ -142,7 +143,7 @@ _CVE_COLUMNS = (
 )
 
 
-def save_cves(rows: list[dict]) -> int:
+def save_cves(rows: list[dict[str, Any]]) -> int:
     """Upsert parsed CVE rows into the ``cves`` table. Returns the number of rows.
 
     Uses a server-side prepared statement: values travel separately from the

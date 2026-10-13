@@ -1,5 +1,6 @@
 """CISA Known Exploited Vulnerabilities (KEV) catalog client."""
 import datetime
+from typing import Any
 
 # config must be imported before any network I/O (loads .env, OS trust store)
 from mavis import config
@@ -10,7 +11,7 @@ from mavis.db import get_connection
 KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 
 
-def fetch_kev() -> list[dict]:
+def fetch_kev() -> list[dict[str, Any]]:
     """Download the full CISA KEV catalog.
 
     Returns:
@@ -26,7 +27,7 @@ def _parse_date(value: str | None) -> datetime.date | None:
     return datetime.date.fromisoformat(value) if value else None
 
 
-def parse_kev_entry(entry: dict) -> dict:
+def parse_kev_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """Flatten one raw KEV entry into a row for the ``kev_entries`` table."""
     return {
         'cve_id': entry['cveID'],
@@ -41,7 +42,7 @@ def parse_kev_entry(entry: dict) -> dict:
 _KEV_COLUMNS = ('cve_id', 'vendor', 'product', 'date_added', 'due_date', 'known_ransomware')
 
 
-def save_kev(rows: list[dict]) -> int:
+def save_kev(rows: list[dict[str, Any]]) -> int:
     """Upsert parsed KEV rows into ``kev_entries``. Returns the number of rows.
 
     Same prepared-statement upsert as ``nvd.save_cves``. The whole catalog is

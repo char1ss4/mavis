@@ -1,7 +1,9 @@
 """Local watchlist of software you run. Never leaves the machine."""
 
+from typing import Any
 
-def load_watchlist(path: str = "watchlist.yaml") -> list[dict]:
+
+def load_watchlist(path: str = "watchlist.yaml") -> list[dict[str, Any]]:
     """Load watchlist entries from a YAML file.
 
     Args:
@@ -13,7 +15,7 @@ def load_watchlist(path: str = "watchlist.yaml") -> list[dict]:
     raise NotImplementedError
 
 
-def match_cve(cve: dict, watchlist: list[dict]) -> list[dict]:
+def match_cve(cve: dict[str, Any], watchlist: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return the watchlist entries that a CVE affects.
 
     Args:

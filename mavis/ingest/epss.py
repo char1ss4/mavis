@@ -1,6 +1,7 @@
 """FIRST EPSS (Exploit Prediction Scoring System) API client."""
 import datetime
 import time
+from typing import Any
 
 # config must be imported before any network I/O (loads .env, OS trust store)
 from mavis import config
@@ -15,7 +16,7 @@ BATCH_SIZE = 50
 MAX_RETRIES = 5
 
 
-def _get_with_retry(params: dict) -> dict:
+def _get_with_retry(params: dict[str, Any]) -> dict[str, Any]:
     """GET one batch from EPSS, backing off and retrying on 429/503."""
     wait = 2
     for attempt in range(MAX_RETRIES):
@@ -37,7 +38,7 @@ def _get_with_retry(params: dict) -> dict:
     )
 
 
-def fetch_epss(cve_ids: list[str]) -> list[dict]:
+def fetch_epss(cve_ids: list[str]) -> list[dict[str, Any]]:
     """Fetch current EPSS scores for the given CVE IDs.
 
     Args:
@@ -47,7 +48,7 @@ def fetch_epss(cve_ids: list[str]) -> list[dict]:
     Returns:
         Dicts with ``cve``, ``epss``, ``percentile`` and ``date`` keys.
     """
-    results = []
+    results: list[dict[str, Any]] = []
     for i in range(0, len(cve_ids), BATCH_SIZE):
         batch = cve_ids[i:i + BATCH_SIZE]
         data = _get_with_retry({'cve': ','.join(batch), 'limit': BATCH_SIZE})
@@ -56,7 +57,7 @@ def fetch_epss(cve_ids: list[str]) -> list[dict]:
     return results
 
 
-def parse_epss(item: dict) -> dict:
+def parse_epss(item: dict[str, Any]) -> dict[str, Any]:
     """Convert one EPSS API item into a row for the ``epss_scores`` table."""
     # The API sends numbers as 9-decimal strings; the column holds 5 decimals
     return {
@@ -70,7 +71,7 @@ def parse_epss(item: dict) -> dict:
 _EPSS_COLUMNS = ('cve_id', 'score_date', 'epss', 'percentile')
 
 
-def save_epss(rows: list[dict]) -> int:
+def save_epss(rows: list[dict[str, Any]]) -> int:
     """Upsert parsed EPSS rows into ``epss_scores``. Returns the number of rows.
 
     Keyed by (cve_id, score_date), so each day's poll adds a new row per CVE
