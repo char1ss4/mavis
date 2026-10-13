@@ -1,12 +1,19 @@
 import datetime
+from typing import Any
+
+import pytest
 
 from mavis.ingest import nvd
 
 
-def test_fetch_splits_long_ranges_into_120_day_windows(monkeypatch):
-    windows = []
+def _no_sleep(seconds: float) -> None:
+    pass
 
-    def fake_get(params):
+
+def test_fetch_splits_long_ranges_into_120_day_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    windows: list[tuple[datetime.datetime, datetime.datetime]] = []
+
+    def fake_get(params: dict[str, Any]) -> dict[str, Any]:
         windows.append((
             datetime.datetime.strptime(params['pubStartDate'], nvd.DATE_FORMAT),
             datetime.datetime.strptime(params['pubEndDate'], nvd.DATE_FORMAT),
@@ -14,7 +21,7 @@ def test_fetch_splits_long_ranges_into_120_day_windows(monkeypatch):
         return {'vulnerabilities': [], 'totalResults': 0}
 
     monkeypatch.setattr(nvd, '_get_with_retry', fake_get)
-    monkeypatch.setattr(nvd.time, 'sleep', lambda seconds: None)
+    monkeypatch.setattr(nvd.time, 'sleep', _no_sleep)
 
     nvd.fetch_recent_cves(days=250)
 
@@ -27,17 +34,17 @@ def test_fetch_splits_long_ranges_into_120_day_windows(monkeypatch):
     assert windows[-1][1] - windows[0][0] == datetime.timedelta(days=250)
 
 
-def test_fetch_pages_until_total_results(monkeypatch):
-    start_indexes = []
+def test_fetch_pages_until_total_results(monkeypatch: pytest.MonkeyPatch) -> None:
+    start_indexes: list[int] = []
 
-    def fake_get(params):
+    def fake_get(params: dict[str, Any]) -> dict[str, Any]:
         start_indexes.append(params['startIndex'])
         page_size = 2 if params['startIndex'] < 4 else 1
         page = [{'cve': {'id': f"CVE-2026-{params['startIndex'] + i}"}} for i in range(page_size)]
         return {'vulnerabilities': page, 'totalResults': 5}
 
     monkeypatch.setattr(nvd, '_get_with_retry', fake_get)
-    monkeypatch.setattr(nvd.time, 'sleep', lambda seconds: None)
+    monkeypatch.setattr(nvd.time, 'sleep', _no_sleep)
 
     records = nvd.fetch_recent_cves(days=7)
 
@@ -45,8 +52,8 @@ def test_fetch_pages_until_total_results(monkeypatch):
     assert len(records) == 5
 
 
-def test_parse_cve_without_cvss_stores_null_not_zero():
-    raw = {
+def test_parse_cve_without_cvss_stores_null_not_zero() -> None:
+    raw: dict[str, Any] = {
         'id': 'CVE-2026-0001',
         'published': '2026-10-12T10:15:00.000',
         'lastModified': '2026-10-12T11:00:00.000',
@@ -66,8 +73,8 @@ def test_parse_cve_without_cvss_stores_null_not_zero():
     assert row['cvss_source'] is None
 
 
-def test_pick_cvss_prefers_v31_and_primary_source():
-    metrics = {
+def test_pick_cvss_prefers_v31_and_primary_source() -> None:
+    metrics: dict[str, Any] = {
         'cvssMetricV2': [{'type': 'Primary', 'source': 'nvd@nist.gov',
                           'cvssData': {'baseScore': 5.0}, 'baseSeverity': 'MEDIUM'}],
         'cvssMetricV31': [
