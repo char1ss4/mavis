@@ -1,4 +1,5 @@
 import datetime
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -68,6 +69,68 @@ def test_fetch_recent_kev_cves_filters_by_kev_date(monkeypatch: pytest.MonkeyPat
     assert {'kevStartDate', 'kevEndDate'} <= seen[0].keys()
     assert 'pubStartDate' not in seen[0]
     assert records == [{'id': 'CVE-2015-3306'}]
+
+
+def _record_fetch(
+        monkeypatch: pytest.MonkeyPatch, fetch: Callable[[int], list[dict[str, Any]]],
+        days: int, pages_per_chunk: list[int]) -> list[tuple[str, int | None]]:
+    """Run ``fetch`` against a fake NVD and return the ordered log of requests and sleeps.
+
+    Chunk ``i`` has ``pages_per_chunk[i]`` pages of up to 2 records; its last page is
+    partial, so the remaining result set shrinks until pagination stops on its own.
+    """
+    events: list[tuple[str, int | None]] = []
+    chunk_starts: list[str | None] = []
+
+    def fake_get(params: dict[str, Any]) -> dict[str, Any]:
+        start = params.get('pubStartDate') or params.get('kevStartDate')
+        if start not in chunk_starts:
+            chunk_starts.append(start)
+        chunk = len(chunk_starts) - 1
+        events.append(('request', chunk))
+
+        total = 2 * pages_per_chunk[chunk] - 1
+        remaining = total - params['startIndex']
+        page = [{'cve': {'id': f'CVE-{chunk}-{i}'}} for i in range(min(2, remaining))]
+        return {'vulnerabilities': page, 'totalResults': total}
+
+    def fake_sleep(seconds: float) -> None:
+        assert seconds == 0.6
+        events.append(('sleep', None))
+
+    monkeypatch.setattr(nvd, '_get_with_retry', fake_get)
+    monkeypatch.setattr(nvd.time, 'sleep', fake_sleep)
+
+    fetch(days)
+    assert len(chunk_starts) == len(pages_per_chunk)
+    return events
+
+
+@pytest.mark.parametrize('fetch', [nvd.fetch_recent_cves, nvd.fetch_recent_kev_cves])
+@pytest.mark.parametrize('days, pages_per_chunk, expected_requests, expected_sleeps', [
+    (7, [1], 1, 0),            # single page, single chunk
+    (7, [4], 4, 3),            # multiple pages, single chunk
+    (150, [3, 2], 5, 4),       # 120 + 30 days -> 2 chunks
+    (250, [3, 1, 2], 6, 5),    # 120 + 120 + 10 days -> 3 chunks, one single-page
+])
+def test_sleeps_between_every_pair_of_requests_and_never_after_the_last(
+        monkeypatch: pytest.MonkeyPatch, fetch: Callable[[int], list[dict[str, Any]]], days: int,
+        pages_per_chunk: list[int], expected_requests: int, expected_sleeps: int) -> None:
+    events = _record_fetch(monkeypatch, fetch, days, pages_per_chunk)
+    kinds = [kind for kind, _ in events]
+
+    assert kinds.count('request') == expected_requests
+    assert kinds.count('sleep') == expected_sleeps == expected_requests - 1
+
+    # At every chunk boundary, a sleep sits between the two chunks' requests
+    requests = [(i, chunk) for i, (kind, chunk) in enumerate(events) if kind == 'request']
+    for (_, prev_chunk), (i, chunk) in zip(requests, requests[1:]):
+        if chunk != prev_chunk:
+            assert events[i - 1] == ('sleep', None), f'no sleep before chunk {chunk}'
+
+    # Strictly alternating, starting and ending with a request: no two requests
+    # back-to-back and no sleep after the last one
+    assert kinds == ['request', 'sleep'] * expected_sleeps + ['request']
 
 
 def test_parse_cve_without_cvss_stores_null_not_zero() -> None:
