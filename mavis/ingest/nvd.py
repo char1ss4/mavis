@@ -1,4 +1,47 @@
 """NVD CVE API 2.0 client."""
+import datetime
+import json
+import time
+
+# config must be imported before any network I/O (loads .env, OS trust store)
+from mavis import config
+import requests
+
+from mavis.db import get_connection
+
+NVD_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.000+00:00"
+MAX_WINDOW = datetime.timedelta(days=120)
+PAGE_SIZE = 2000
+MAX_RETRIES = 5
+
+# CVSS versions in order of preference (v3.1 is what most tooling reports)
+CVSS_PREFERENCE = ('cvssMetricV31', 'cvssMetricV30', 'cvssMetricV40', 'cvssMetricV2')
+
+
+def _get_with_retry(params: dict) -> dict:
+    """GET one page from NVD, backing off and retrying on 403/503 throttling."""
+    headers = {
+        'apiKey': config.NVD_API_KEY,
+        'User-Agent': 'MAVIS NVD Client'
+    }
+
+    wait = 2
+    for attempt in range(MAX_RETRIES):
+        response = requests.get(NVD_URL, params=params, headers=headers, timeout=30)
+
+        # NVD uses 403 and 503 for throttling/overload, so those are worth retrying
+        if response.status_code not in (403, 503):
+            response.raise_for_status()  # Raise an error for other HTTP errors
+            return response.json()
+
+        if attempt < MAX_RETRIES - 1:
+            time.sleep(wait)
+            wait *= 2  # 2s, 4s, 8s, 16s
+
+    raise RuntimeError(
+        f"NVD still returning HTTP {response.status_code} after {MAX_RETRIES} attempts"
+    )
 
 
 def fetch_recent_cves(days: int) -> list[dict]:
@@ -16,4 +59,106 @@ def fetch_recent_cves(days: int) -> list[dict]:
     Returns:
         Raw CVE records (the ``vulnerabilities[].cve`` objects) as dicts.
     """
-    raise NotImplementedError
+    # Calculate the start and end dates for the query
+    end_date = datetime.datetime.now(datetime.timezone.utc)
+    start_date = end_date - datetime.timedelta(days=days)
+
+    cve_records = []
+
+    # Split the date range into chunks of at most 120 days
+    current_start_date = start_date
+    while current_start_date < end_date:
+        current_end_date = min(current_start_date + MAX_WINDOW, end_date)
+
+        # Page through this chunk until we have totalResults records
+        start_index = 0
+        while True:
+            data = _get_with_retry({
+                'pubStartDate': current_start_date.strftime(DATE_FORMAT),
+                'pubEndDate': current_end_date.strftime(DATE_FORMAT),
+                'resultsPerPage': PAGE_SIZE,
+                'startIndex': start_index,
+            })
+
+            page = data.get('vulnerabilities', [])
+            cve_records.extend(item['cve'] for item in page)
+            start_index += len(page)
+
+            time.sleep(0.6)  # Stay under the keyed rate limit
+
+            # Stop on an empty page too, so a bad totalResults can't loop forever
+            if not page or start_index >= data['totalResults']:
+                break
+
+        # Chunks share a boundary; duplicates are absorbed by the upsert
+        current_start_date = current_end_date
+
+    return cve_records
+
+
+def _pick_cvss(metrics: dict) -> tuple[float | None, str | None, str | None]:
+    """Return (score, severity, source) for the preferred CVSS metric, or all None."""
+    for version in CVSS_PREFERENCE:
+        entries = metrics.get(version, [])
+        if not entries:
+            continue
+
+        # Prefer NVD's own score (Primary) over a CNA's (Secondary)
+        entry = next((e for e in entries if e.get('type') == 'Primary'), entries[0])
+        data = entry['cvssData']
+
+        # v2 keeps baseSeverity next to cvssData rather than inside it
+        severity = data.get('baseSeverity') or entry.get('baseSeverity')
+        source = entry.get('source')
+        return data.get('baseScore'), severity, source[:50] if source else None
+
+    # No CVSS yet: store NULL, never 0 (scoring treats missing as mid-range)
+    return None, None, None
+
+
+def parse_cve(cve: dict) -> dict:
+    """Flatten one raw NVD CVE record into a row for the ``cves`` table."""
+    description = next(
+        (d['value'] for d in cve.get('descriptions', []) if d.get('lang') == 'en'),
+        None,
+    )
+    score, severity, source = _pick_cvss(cve.get('metrics', {}))
+
+    return {
+        'cve_id': cve['id'],
+        'published': datetime.datetime.fromisoformat(cve['published']),
+        'last_modified': datetime.datetime.fromisoformat(cve['lastModified']),
+        'description': description,
+        'cvss_score': score,
+        'cvss_severity': severity,
+        'cvss_source': source,
+        'raw_json': json.dumps(cve),
+    }
+
+
+def save_cves(rows: list[dict]) -> int:
+    """Upsert parsed CVE rows into the ``cves`` table. Returns the number of rows."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        upsert_query = """
+            INSERT INTO cves (cve_id, description, published, last_modified, cvss_score, cvss_severity, cvss_source, raw_json)
+            VALUES (%(cve_id)s, %(description)s, %(published)s, %(last_modified)s, %(cvss_score)s, %(cvss_severity)s, %(cvss_source)s, %(raw_json)s)
+            AS new
+            ON DUPLICATE KEY UPDATE
+                description = new.description
+                , published = new.published
+                , last_modified = new.last_modified
+                , cvss_score = new.cvss_score
+                , cvss_severity = new.cvss_severity
+                , cvss_source = new.cvss_source
+                , raw_json = new.raw_json
+            """
+        for i in range(0, len(rows), 500):
+            batch = rows[i:i + 500]
+            cursor.executemany(upsert_query, batch)
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+    return len(rows)
