@@ -1,11 +1,24 @@
 """MAVIS command-line entry point."""
 
 import argparse
+import time
 
 
 def cmd_poll(args: argparse.Namespace) -> None:
     """Pull recent CVEs from NVD plus KEV and EPSS data into MySQL."""
-    raise NotImplementedError
+    # Imported here so `--help` works without a .env or network access
+    from mavis.ingest import nvd
+
+    started = time.monotonic()
+    print(f"Polling NVD for CVEs published in the last {args.days} day(s)...")
+
+    rows = [nvd.parse_cve(cve) for cve in nvd.fetch_recent_cves(args.days)]
+    saved = nvd.save_cves(rows)
+    unscored = sum(1 for row in rows if row['cvss_score'] is None)
+
+    # TODO(Day 3): ingest KEV and EPSS here as well
+    elapsed = time.monotonic() - started
+    print(f"NVD: saved {saved} CVEs ({unscored} without a CVSS score yet) in {elapsed:.1f}s")
 
 
 def cmd_score(args: argparse.Namespace) -> None:

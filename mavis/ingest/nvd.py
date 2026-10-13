@@ -136,14 +136,26 @@ def parse_cve(cve: dict) -> dict:
     }
 
 
+_CVE_COLUMNS = (
+    'cve_id', 'description', 'published', 'last_modified',
+    'cvss_score', 'cvss_severity', 'cvss_source', 'raw_json',
+)
+
+
 def save_cves(rows: list[dict]) -> int:
-    """Upsert parsed CVE rows into the ``cves`` table. Returns the number of rows."""
+    """Upsert parsed CVE rows into the ``cves`` table. Returns the number of rows.
+
+    Uses a server-side prepared statement: values travel separately from the
+    SQL, so quotes, backslashes and ``;`` in descriptions or raw JSON can't
+    corrupt it. (The connector's default ``executemany`` splices every value
+    into one big SQL string, which broke on a 7-day poll.)
+    """
     conn = get_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(prepared=True)
     try:
-        upsert_query = """
-            INSERT INTO cves (cve_id, description, published, last_modified, cvss_score, cvss_severity, cvss_source, raw_json)
-            VALUES (%(cve_id)s, %(description)s, %(published)s, %(last_modified)s, %(cvss_score)s, %(cvss_severity)s, %(cvss_source)s, %(raw_json)s)
+        upsert_query = f"""
+            INSERT INTO cves ({', '.join(_CVE_COLUMNS)})
+            VALUES ({', '.join(['%s'] * len(_CVE_COLUMNS))})
             AS new
             ON DUPLICATE KEY UPDATE
                 description = new.description
@@ -154,9 +166,8 @@ def save_cves(rows: list[dict]) -> int:
                 , cvss_source = new.cvss_source
                 , raw_json = new.raw_json
             """
-        for i in range(0, len(rows), 500):
-            batch = rows[i:i + 500]
-            cursor.executemany(upsert_query, batch)
+        for row in rows:
+            cursor.execute(upsert_query, tuple(row[c] for c in _CVE_COLUMNS))
         conn.commit()
     finally:
         cursor.close()
