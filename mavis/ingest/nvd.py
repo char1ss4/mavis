@@ -105,14 +105,17 @@ def _fetch_by_date_range(start_param: str, end_param: str, days: int) -> list[di
             cve_records.extend(item['cve'] for item in page)
             start_index += len(page)
 
-            time.sleep(0.6)  # Stay under the keyed rate limit
-
             # Stop on an empty page too, so a bad totalResults can't loop forever
             if not page or start_index >= data['totalResults']:
                 break
 
+            time.sleep(0.6)  # Stay under the keyed rate limit
+
         # Chunks share a boundary; duplicates are absorbed by the upsert
         current_start_date = current_end_date
+
+        if current_start_date < end_date:
+            time.sleep(0.6)  # Space the next chunk's first request from this one's last
 
     return cve_records
 
