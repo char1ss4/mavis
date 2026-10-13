@@ -173,3 +173,15 @@ def save_cves(rows: list[dict]) -> int:
         cursor.close()
         conn.close()
     return len(rows)
+
+
+def stored_cve_ids() -> list[str]:
+    """Return every CVE ID in the ``cves`` table (used to look up EPSS scores)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT cve_id FROM cves ORDER BY cve_id")
+        return [cve_id for (cve_id,) in cursor.fetchall()]
+    finally:
+        cursor.close()
+        conn.close()

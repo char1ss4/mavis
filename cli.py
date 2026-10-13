@@ -7,7 +7,7 @@ import time
 def cmd_poll(args: argparse.Namespace) -> None:
     """Pull recent CVEs from NVD plus KEV and EPSS data into MySQL."""
     # Imported here so `--help` works without a .env or network access
-    from mavis.ingest import nvd
+    from mavis.ingest import epss, kev, nvd
 
     started = time.monotonic()
     print(f"Polling NVD for CVEs published in the last {args.days} day(s)...")
@@ -15,10 +15,21 @@ def cmd_poll(args: argparse.Namespace) -> None:
     rows = [nvd.parse_cve(cve) for cve in nvd.fetch_recent_cves(args.days)]
     saved = nvd.save_cves(rows)
     unscored = sum(1 for row in rows if row['cvss_score'] is None)
+    print(f"NVD: saved {saved} CVEs ({unscored} without a CVSS score yet)")
 
-    # TODO(Day 3): ingest KEV and EPSS here as well
+    print("Downloading the CISA KEV catalog...")
+    kev_rows = [kev.parse_kev_entry(entry) for entry in kev.fetch_kev()]
+    print(f"KEV: saved {kev.save_kev(kev_rows)} known-exploited CVEs")
+
+    # Every stored CVE, not just this poll's: EPSS is re-scored daily
+    cve_ids = nvd.stored_cve_ids()
+    print(f"Fetching EPSS scores for {len(cve_ids)} stored CVEs...")
+    epss_rows = [epss.parse_epss(item) for item in epss.fetch_epss(cve_ids)]
+    saved_epss = epss.save_epss(epss_rows)
+    print(f"EPSS: saved {saved_epss} scores ({len(cve_ids) - saved_epss} CVEs not scored by EPSS yet)")
+
     elapsed = time.monotonic() - started
-    print(f"NVD: saved {saved} CVEs ({unscored} without a CVSS score yet) in {elapsed:.1f}s")
+    print(f"Done in {elapsed:.1f}s")
 
 
 def cmd_score(args: argparse.Namespace) -> None:
