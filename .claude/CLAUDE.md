@@ -50,3 +50,5 @@ Tables `cves`, `kev_entries`, `epss_scores` (keyed by `cve_id, score_date`) and 
 ## Privacy boundary (hard rule)
 
 The watchlist, match results and local priority scores must never leave the machine. Every LLM payload goes through `mavis/briefing/boundary.py`; never pass raw records to `mavis/briefing/digest.py` or add another path to an external service. `.env` and `watchlist.yaml` are gitignored. Use `watchlist.example.yaml` / `.env.example` as templates and don't commit the real files.
+
+**Never open secrets.** Do not read, print, search, `cat`/`type`/`Get-Content`, or otherwise output the contents of `.env` or `watchlist.yaml`, by any tool or command, even to debug. Use `.env.example` / `watchlist.example.yaml` to learn the format. To check whether a variable is set, test for presence only (e.g. `bool(os.getenv("NVD_API_KEY"))`) and never echo its value. If a task seems to need the real contents, ask the user instead. `.claude/settings.json` enforces part of this with deny rules, but the rule applies even where those don't reach.

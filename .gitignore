@@ -17,6 +17,8 @@ env/
 .env
 watchlist.yaml
 CLAUDE.local.md
+.claude/settings.json
+.claude/settings.local.json
 
 # Editors / OS
 .vscode/
