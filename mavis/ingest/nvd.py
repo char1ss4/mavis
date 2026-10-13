@@ -184,7 +184,7 @@ def stored_cve_ids() -> list[str]:
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT cve_id FROM cves ORDER BY cve_id")
-        return [cve_id for (cve_id,) in cursor.fetchall()]
+        return [str(cve_id) for (cve_id,) in cursor.fetchall()]
     finally:
         cursor.close()
         conn.close()
