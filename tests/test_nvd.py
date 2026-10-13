@@ -78,4 +78,4 @@ def test_pick_cvss_prefers_v31_and_primary_source():
         ],
     }
 
-    assert nvd._pick_cvss(metrics) == (7.5, 'HIGH', 'nvd@nist.gov')
+    assert nvd._pick_cvss(metrics) == (7.5, 'HIGH', 'nvd@nist.gov')  # pyright: ignore[reportPrivateUsage]

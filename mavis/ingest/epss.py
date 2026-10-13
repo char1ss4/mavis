@@ -4,7 +4,7 @@ import time
 from typing import Any
 
 # config must be imported before any network I/O (loads .env, OS trust store)
-from mavis import config
+from mavis import config  # pyright: ignore[reportUnusedImport]  # noqa: F401
 import requests
 
 from mavis.db import get_connection
