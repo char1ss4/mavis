@@ -1,12 +1,13 @@
 """MySQL connection helper (mysql-connector-python)."""
 
 import mysql.connector
-from mysql.connector.connection import MySQLConnection
+from mysql.connector.abstracts import MySQLConnectionAbstract
+from mysql.connector.pooling import PooledMySQLConnection
 
 from mavis import config
 
 
-def get_connection() -> MySQLConnection:
+def get_connection() -> PooledMySQLConnection | MySQLConnectionAbstract:
     """Open a new connection to the MAVIS database using values from config."""
     return mysql.connector.connect(
         host=config.MYSQL_HOST,
