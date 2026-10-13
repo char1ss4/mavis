@@ -1,9 +1,12 @@
 import datetime
+from typing import Any
+
+import pytest
 
 from mavis.ingest import epss, kev
 
 
-def test_parse_kev_entry():
+def test_parse_kev_entry() -> None:
     raw = {
         'cveID': 'CVE-2026-0001',
         'vendorProject': 'Example',
@@ -27,10 +30,10 @@ def test_parse_kev_entry():
     }
 
 
-def test_fetch_epss_batches_ids(monkeypatch):
-    batches = []
+def test_fetch_epss_batches_ids(monkeypatch: pytest.MonkeyPatch) -> None:
+    batches: list[list[str]] = []
 
-    def fake_get(params):
+    def fake_get(params: dict[str, Any]) -> dict[str, Any]:
         ids = params['cve'].split(',')
         batches.append(ids)
         # Pretend EPSS has no score for the first ID of each batch
@@ -43,12 +46,12 @@ def test_fetch_epss_batches_ids(monkeypatch):
     results = epss.fetch_epss(cve_ids)
 
     assert [len(b) for b in batches] == [epss.BATCH_SIZE, epss.BATCH_SIZE, 5]
-    assert sum(batches, []) == cve_ids
+    assert [i for b in batches for i in b] == cve_ids
     assert len(results) == len(cve_ids) - 3
 
 
-def test_fetch_epss_empty_list_makes_no_requests(monkeypatch):
-    def fail(params):
+def test_fetch_epss_empty_list_makes_no_requests(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail(params: dict[str, Any]) -> dict[str, Any]:
         raise AssertionError('should not call the API')
 
     monkeypatch.setattr(epss, '_get_with_retry', fail)
@@ -56,7 +59,7 @@ def test_fetch_epss_empty_list_makes_no_requests(monkeypatch):
     assert epss.fetch_epss([]) == []
 
 
-def test_parse_epss_rounds_to_column_precision():
+def test_parse_epss_rounds_to_column_precision() -> None:
     row = epss.parse_epss(
         {'cve': 'CVE-2024-3094', 'epss': '0.904610000', 'percentile': '0.998016000', 'date': '2026-10-13'}
     )
