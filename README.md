@@ -29,7 +29,7 @@ docker cp mavis-mysql:/tmp/seed.sql db/seed.sql
 
 To restore it (overwrites the dumped tables), run `sh db/restore_seed.sh` from the repo root.
 
-Re-dump after KEV/EPSS ingestion is added; the current seed has CVEs only.
+The seed covers all ingested tables (`cves`, `kev_entries`, `epss_scores`). Re-dump after schema changes or when you want fresher data.
 
 ## Privacy boundary
 
