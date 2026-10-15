@@ -1,9 +1,12 @@
 """MAVIS command-line entry point."""
 
 import argparse
+import shutil
+import sys
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import Any
 
 
 class StageTimer:
@@ -71,9 +74,64 @@ def cmd_poll(args: argparse.Namespace) -> None:
     print(f"Done in {elapsed:.1f}s")
 
 
+def _match_label(row: dict[str, Any]) -> str:
+    if not row['matches']:
+        return ''
+    return f"{', '.join(m['name'] for m in row['matches'])} ({row['match_type']})"
+
+
+def format_score_table(ranked: list[dict[str, Any]], width: int) -> list[str]:
+    """Render ranked CVEs as plain-ASCII table lines, cutting descriptions to fit ``width``."""
+    match_width = max([len('Match')] + [len(_match_label(r)) for r in ranked])
+    header = f"{'#':>3}  {'CVE':<16} {'Score':>5} {'CVSS':>5} {'EPSS':>6}  {'KEV':<3}  {'Match':<{match_width}}  "
+    desc_width = max(width - len(header), 10)
+
+    lines = [header + 'Description']
+    for rank, row in enumerate(ranked, start=1):
+        # '-' rather than the neutral 5.0 used for scoring, so the screen doesn't imply NVD gave it a 5
+        cvss = '-' if row['cvss_score'] is None else f"{row['cvss_score']:.1f}"
+        epss = '-' if row['epss'] is None else f"{row['epss']:.1%}"
+        kev = 'yes' if row['in_kev'] else ''
+        description = ' '.join((row['description'] or '').split())
+        if len(description) > desc_width:
+            description = description[:desc_width - 3] + '...'
+        lines.append(
+            f"{rank:>3}  {row['cve_id']:<16} {row['score']:>5.1f} {cvss:>5} {epss:>6}  {kev:<3}  "
+            f"{_match_label(row):<{match_width}}  {description}"
+        )
+    return lines
+
+
 def cmd_score(args: argparse.Namespace) -> None:
     """Score stored CVEs against the local watchlist."""
-    raise NotImplementedError
+    from mavis.scoring.inputs import fetch_scoring_inputs
+    from mavis.scoring.ranking import rank_cves
+    from mavis.scoring.watchlist import load_watchlist
+
+    try:
+        watchlist = load_watchlist(args.watchlist)
+    except FileNotFoundError:
+        sys.exit(f"No watchlist found at {args.watchlist}. Create it to list the software you run "
+                 "(format: see 'Watchlist' in README.md).")
+
+    ranked = rank_cves(fetch_scoring_inputs(), watchlist)
+    matched = [r for r in ranked if r['matches']]
+    by_cpe = sum(1 for r in matched if r['match_type'] == 'cpe')
+    in_kev = sum(1 for r in ranked if r['in_kev'])
+    no_cvss = sum(1 for r in ranked if r['cvss_score'] is None)
+
+    print(f"Scored {len(ranked):,} CVEs against {len(watchlist)} watchlist entries")
+    print(f"  {in_kev} in KEV | {len(matched)} match your watchlist "
+          f"({by_cpe} CPE, {len(matched) - by_cpe} keyword) | {no_cvss} without CVSS (scored as 5.0)")
+    print()
+
+    shown = (matched if args.matched else ranked)[:args.limit]
+    for line in format_score_table(shown, shutil.get_terminal_size().columns):
+        print(line)
+
+    print()
+    print(f"Showing top {len(shown)}. Use --limit N for more"
+          + ("." if args.matched else ", --matched to show only watchlist matches."))
 
 
 def cmd_brief(args: argparse.Namespace) -> None:
@@ -94,6 +152,10 @@ def build_parser() -> argparse.ArgumentParser:
     poll.set_defaults(func=cmd_poll)
 
     score = sub.add_parser("score", help=cmd_score.__doc__)
+    score.add_argument("--limit", type=int, default=20, help="how many CVEs to show")
+    score.add_argument("--matched", action="store_true",
+                       help="only show CVEs that match the watchlist")
+    score.add_argument("--watchlist", default="watchlist.yaml", help="path to the watchlist file")
     score.set_defaults(func=cmd_score)
 
     brief = sub.add_parser("brief", help=cmd_brief.__doc__)
