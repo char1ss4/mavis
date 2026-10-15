@@ -113,6 +113,22 @@ def find_cached_digest(input_hash: str, model: str) -> dict[str, Any] | None:
         conn.close()
 
 
+def latest_digest() -> dict[str, Any] | None:
+    """Return the newest stored digest with its metadata, or None if there are none."""
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id, created_at, model, output_json FROM digests ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return {'id': row['id'], 'created_at': row['created_at'], 'model': row['model'],
+                **json.loads(row['output_json'])}
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def save_digest(payload: list[dict[str, Any]], digest: dict[str, Any], model: str) -> int:
     """Store a digest in the ``digests`` table and return its id."""
     conn = get_connection()

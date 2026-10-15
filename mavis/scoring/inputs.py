@@ -18,6 +18,7 @@ _SCORING_INPUTS_QUERY = """
     )
     SELECT
         c.cve_id
+        , c.published
         , c.description
         , c.cvss_score
         , c.cvss_severity

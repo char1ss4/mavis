@@ -1,0 +1,75 @@
+/* Design tokens from .claude/MAVIS_DESIGN.md section 3. Don't hard-code colors elsewhere. */
+:root {
+  /* Surfaces */
+  --mv-bg:          #04090C;
+  --mv-panel:       rgba(12, 32, 40, 0.55);
+  --mv-panel-edge:  rgba(110, 231, 240, 0.28);
+
+  /* Signal colors */
+  --mv-primary:     #6EE7F0;
+  --mv-primary-dim: #2A6E78;
+  --mv-text:        #D8F6F8;
+  --mv-text-muted:  #7FA9AE;
+
+  /* Severity (use ONLY for severity, never decoration) */
+  --mv-sev-low:     #6EE7F0;
+  --mv-sev-medium:  #F2C14E;
+  --mv-sev-high:    #FF8A3D;
+  --mv-sev-critical:#FF4D5E;
+
+  /* Glow */
+  --mv-glow:        0 0 6px rgba(110, 231, 240, 0.55), 0 0 18px rgba(110, 231, 240, 0.18);
+  --mv-glow-crit:   0 0 8px rgba(255, 77, 94, 0.7),   0 0 24px rgba(255, 77, 94, 0.25);
+
+  /* Lines */
+  --mv-line-hair:   1px;
+  --mv-line-thin:   1.5px;
+
+  /* Type */
+  --mv-font-ui:     "Rajdhani", "Barlow Semi Condensed", system-ui, sans-serif;
+  --mv-font-data:   "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Spacing scale (px) */
+  --mv-space-1: 4px;  --mv-space-2: 8px;  --mv-space-3: 12px;
+  --mv-space-4: 16px; --mv-space-5: 24px; --mv-space-6: 40px;
+
+  /* Motion */
+  --mv-ease:        cubic-bezier(0.2, 0.8, 0.2, 1);
+  --mv-fast:        150ms;
+  --mv-med:         400ms;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background-color: var(--mv-bg);
+  /* Faint 40px grid (primary-dim at 6%) plus a 1px scanline at 3% */
+  background-image:
+    repeating-linear-gradient(to bottom, rgb(110 231 240 / 3%) 0 1px, transparent 1px 4px),
+    linear-gradient(to right, rgb(42 110 120 / 6%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(42 110 120 / 6%) 1px, transparent 1px);
+  background-size: auto, 40px 40px, 40px 40px;
+  color: var(--mv-text);
+  font-family: var(--mv-font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+button, select, input { font: inherit; color: inherit; }
+
+:focus-visible {
+  outline: var(--mv-line-hair) solid var(--mv-primary);
+  box-shadow: var(--mv-glow);
+}
+
+.data { font-family: var(--mv-font-data); font-size: 13px; font-variant-numeric: tabular-nums; }
+.muted { color: var(--mv-text-muted); }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}

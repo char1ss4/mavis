@@ -54,6 +54,20 @@ python cli.py brief --dry-run       # print exactly what would be sent, send not
 
 `brief` sends the top-scored CVEs to Gemini (`GEMINI_MODEL`, default `gemini-flash-latest`) and asks for structured JSON (a summary plus one item per CVE with an urgency of `patch now`, `patch this week` or `monitor`). Each digest is stored in the `digests` table. Running `brief` again on the same CVEs reuses the stored digest instead of calling Gemini, so a demo still works if the API is down; `--fresh` forces a new one.
 
+## HUD (browser frontend)
+
+React + Vite in `frontend/`, served by a FastAPI app (`mavis/api.py`) that binds to `127.0.0.1` only. The page calls only this local API, never Gemini.
+
+```bash
+npm install --prefix frontend       # once
+npm run build --prefix frontend     # build the HUD into frontend/dist
+python cli.py serve                 # API + built HUD on http://127.0.0.1:8000 (API docs at /api/docs)
+```
+
+For frontend development, run `python cli.py serve` and `npm run dev --prefix frontend` together; Vite (http://127.0.0.1:5173) reloads on save and forwards `/api` to the backend.
+
+"Brief me" reads the digest summary aloud with the browser's Web Speech API. Edge's "Natural" voices sound best; they are online voices, so only Gemini's summary is ever spoken (never watchlist matches or scores). The design spec is `.claude/MAVIS_DESIGN.md`.
+
 ## Privacy boundary
 
 Only public CVE fields are sent to the LLM: CVE ID, description, CVSS score and severity, KEV status and ransomware note, and EPSS score and percentile. Your watchlist, match results and local scores never leave the machine. `mavis/briefing/boundary.py` is the single place that builds the outbound payload. It copies fields from an allowlist (so a new local field can't leak by default) and re-sorts the records by CVE ID so their order doesn't reveal the local ranking. `.env` and `watchlist.yaml` are gitignored.

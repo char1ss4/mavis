@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mavis-api",
+      "runtimeExecutable": "C:\\Users\\ASUS\\miscProjects\\mavis\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": ["cli.py", "serve"],
+      "cwd": "C:\\Users\\ASUS\\miscProjects\\mavis",
+      "port": 8000
+    },
+    {
+      "name": "mavis-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
+      "cwd": "C:\\Users\\ASUS\\miscProjects\\mavis",
+      "port": 5173
+    }
+  ]
+}

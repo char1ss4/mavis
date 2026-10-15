@@ -221,6 +221,15 @@ def cmd_brief(args: argparse.Namespace) -> None:
     print(f"Sources: NVD, CISA KEV, FIRST EPSS | {args.model} | {note}")
 
 
+def cmd_serve(args: argparse.Namespace) -> None:
+    """Run the local API (and the built HUD, if present) on 127.0.0.1."""
+    import uvicorn
+
+    # 127.0.0.1, never 0.0.0.0: the API serves watchlist matches, so it must stay on this machine
+    print(f"MAVIS API on http://127.0.0.1:{args.port} (docs at /api/docs). Ctrl+C to stop.")
+    uvicorn.run('mavis.api:app', host='127.0.0.1', port=args.port, reload=args.reload)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mavis", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -251,6 +260,11 @@ def build_parser() -> argparse.ArgumentParser:
                        help="call Gemini even if a digest for the same CVEs is stored")
     brief.add_argument("--model", default=None, help="Gemini model (default: GEMINI_MODEL or gemini-flash-latest)")
     brief.set_defaults(func=cmd_brief)
+
+    serve = sub.add_parser("serve", help=cmd_serve.__doc__)
+    serve.add_argument("--port", type=int, default=8000, help="port to listen on")
+    serve.add_argument("--reload", action="store_true", help="restart when Python files change (development)")
+    serve.set_defaults(func=cmd_serve)
 
     return parser
 

@@ -4,5 +4,7 @@ python-dotenv
 truststore
 pyyaml
 google-genai
+fastapi
+uvicorn
 pytest
 # streamlit  # optional dashboard
