@@ -44,6 +44,18 @@ To restore it (overwrites the dumped tables), run `sh db/restore_seed.sh` from t
 
 The seed covers all ingested tables (`cves`, `kev_entries`, `epss_scores`). Re-dump after schema changes or when you want fresher data.
 
+## Patch briefing
+
+```bash
+python cli.py brief                 # brief the top 5 scored CVEs
+python cli.py brief --matched       # only CVEs on your watchlist
+python cli.py brief --dry-run       # print exactly what would be sent, send nothing
+```
+
+`brief` sends the top-scored CVEs to Gemini (`GEMINI_MODEL`, default `gemini-flash-latest`) and asks for structured JSON (a summary plus one item per CVE with an urgency of `patch now`, `patch this week` or `monitor`). Each digest is stored in the `digests` table. Running `brief` again on the same CVEs reuses the stored digest instead of calling Gemini, so a demo still works if the API is down; `--fresh` forces a new one.
+
 ## Privacy boundary
 
-Only public CVE fields are sent to the LLM. Your watchlist, match results and local scores never leave the machine. `mavis/briefing/boundary.py` is the single place that builds the outbound payload. `.env` and `watchlist.yaml` are gitignored.
+Only public CVE fields are sent to the LLM: CVE ID, description, CVSS score and severity, KEV status and ransomware note, and EPSS score and percentile. Your watchlist, match results and local scores never leave the machine. `mavis/briefing/boundary.py` is the single place that builds the outbound payload. It copies fields from an allowlist (so a new local field can't leak by default) and re-sorts the records by CVE ID so their order doesn't reveal the local ranking. `.env` and `watchlist.yaml` are gitignored.
+
+Known limitation: *which* CVEs are sent (your top N) can hint at what you run. Padding the selection with unrelated CVEs would hide that; it isn't done yet.

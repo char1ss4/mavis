@@ -16,6 +16,7 @@ load_dotenv()
 
 NVD_API_KEY: str = os.getenv("NVD_API_KEY", "")
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL") or "gemini-flash-latest"
 
 MYSQL_HOST: str = os.getenv("MYSQL_HOST", "127.0.0.1")
 MYSQL_PORT: int = int(os.getenv("MYSQL_PORT") or 3306)
