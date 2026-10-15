@@ -8,13 +8,26 @@ Personal threat-intelligence assistant: MAVIS pulls CVEs from NVD, CISA KEV and 
 
 ```bash
 cp .env.example .env                       # fill in API keys and MySQL credentials
-cp watchlist.example.yaml watchlist.yaml   # list the software you run
 docker compose up -d                       # MySQL 8; schema loads on first start
 python -m venv .venv
 source .venv/bin/activate                  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pytest
 ```
+
+Then create `watchlist.yaml` (gitignored) listing the software you run; see below.
+
+## Watchlist
+
+```yaml
+watchlist:
+  - name: chrome                # your own label, shown in the output
+    vendor: google              # NVD CPE vendor (nvd.nist.gov -> Search -> CPE)
+    product: chrome             # NVD CPE product; "*" matches any product from the vendor
+    keywords: ["Google Chrome"] # optional: phrases to search descriptions for
+```
+
+CVEs that NVD has analysed are matched on CPE vendor/product. Most recent ones have no CPE data yet, so those are matched by searching the description for `keywords` (default: the product name, or the vendor name for `"*"`). Descriptions often mention a product only as context ("a fork of MySQL"), so specific phrases cut false matches. `version` may be included but isn't used for matching yet.
 
 `db/schema.sql` only runs when the MySQL volume is empty. To reapply it, run `docker compose down -v` (this deletes all stored data).
 

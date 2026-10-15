@@ -9,7 +9,7 @@ def load_watchlist(path: str = "watchlist.yaml") -> list[dict[str, Any]]:
     """Load watchlist entries from a YAML file.
 
     Args:
-        path: Path to the local watchlist (see watchlist.example.yaml).
+        path: Path to the local watchlist (format: see "Watchlist" in README.md).
 
     Returns:
         Watchlist entries as dicts.
@@ -30,10 +30,25 @@ def load_watchlist(path: str = "watchlist.yaml") -> list[dict[str, Any]]:
     return entries
 
 
+ANY_PRODUCT = '*'
+
+
 def _keywords(entry: dict[str, Any]) -> list[str]:
-    """Phrases to look for in descriptions; defaults to the product name."""
-    # CPE product names use underscores (http_server) where descriptions use spaces
-    return entry.get('keywords') or [entry['product'].replace('_', ' ')]
+    """Phrases to look for in descriptions; defaults to the product (or vendor) name."""
+    if entry.get('keywords'):
+        return entry['keywords']
+    # A vendor-wide entry has no product name to search for, so use the vendor's
+    name = entry['vendor'] if entry['product'] == ANY_PRODUCT else entry['product']
+    # CPE names use underscores (http_server) where descriptions use spaces
+    return [name.replace('_', ' ')]
+
+
+def _cpe_matches(entry: dict[str, Any], pairs: set[tuple[str, str]]) -> bool:
+    """Whether an entry matches a CVE's (vendor, product) pairs; product ``*`` means any."""
+    vendor, product = entry['vendor'].lower(), entry['product'].lower()
+    if product == ANY_PRODUCT:
+        return any(v == vendor for v, _ in pairs)
+    return (vendor, product) in pairs
 
 
 def _mentions(description: str, phrase: str) -> bool:
@@ -64,7 +79,8 @@ def _cpe_vendor_products(configurations: list[dict[str, Any]]) -> set[tuple[str,
 def match_cve(cve: dict[str, Any], watchlist: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return the watchlist entries that a CVE affects.
 
-    Matches on CPE vendor and product when NVD has analysed the CVE. Most
+    Matches on CPE vendor and product when NVD has analysed the CVE
+    (``product: "*"`` matches any product from that vendor). Most
     recent CVEs have no CPE data yet, so those fall back to searching the
     description for the entry's ``keywords`` (default: the product name).
     Keyword matches are less certain: descriptions often mention a product
@@ -86,7 +102,7 @@ def match_cve(cve: dict[str, Any], watchlist: list[dict[str, Any]]) -> list[dict
         return [
             {**entry, 'match_type': 'cpe'}
             for entry in watchlist
-            if (entry['vendor'].lower(), entry['product'].lower()) in pairs
+            if _cpe_matches(entry, pairs)
         ]
 
     description = cve.get('description') or ''

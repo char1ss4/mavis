@@ -116,10 +116,28 @@ def test_load_watchlist_rejects_bad_keywords(tmp_path: Path) -> None:
         watchlist.load_watchlist(str(path))
 
 
-def test_example_watchlist_loads() -> None:
-    entries = watchlist.load_watchlist('watchlist.example.yaml')
+ADOBE_ANY = {'name': 'adobe', 'vendor': 'adobe', 'product': '*'}
 
-    assert {e['name'] for e in entries} == {'flask', 'mysql', 'docker', 'mosquitto'}
+
+def test_match_cve_any_product_matches_vendor_by_cpe() -> None:
+    cve = {
+        'description': 'Out-of-bounds write.',
+        'configurations': _cpe_config('cpe:2.3:a:adobe:illustrator:28.0:*:*:*:*:*:*:*'),
+    }
+    other_vendor = {
+        'description': 'Out-of-bounds write.',
+        'configurations': _cpe_config('cpe:2.3:a:microsoft:word:*:*:*:*:*:*:*:*'),
+    }
+
+    assert watchlist.match_cve(cve, [ADOBE_ANY]) == [{**ADOBE_ANY, 'match_type': 'cpe'}]
+    assert watchlist.match_cve(other_vendor, [ADOBE_ANY]) == []
+
+
+def test_match_cve_any_product_keyword_defaults_to_vendor_name() -> None:
+    cve = {'description': 'Adobe Acrobat Reader versions 24.1 are affected by a use-after-free.',
+           'configurations': []}
+
+    assert watchlist.match_cve(cve, [ADOBE_ANY]) == [{**ADOBE_ANY, 'match_type': 'keyword'}]
 
 
 def test_match_cve_does_not_modify_watchlist() -> None:
