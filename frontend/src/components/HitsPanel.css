@@ -36,6 +36,18 @@
 .hit__details dt { color: var(--mv-text-muted); }
 .hit__details dd { margin: 0; }
 
+.hit__ask {
+  margin-top: var(--mv-space-3);
+  background: transparent;
+  border: var(--mv-line-hair) solid var(--mv-primary);
+  color: var(--mv-primary);
+  padding: 2px var(--mv-space-3);
+  font-weight: 600;
+  cursor: pointer;
+  transition: box-shadow var(--mv-fast) var(--mv-ease);
+}
+.hit__ask:hover { box-shadow: var(--mv-glow); }
+
 /* Badge: severity color at 20% behind full-color text */
 .badge {
   flex: none;

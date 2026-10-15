@@ -68,6 +68,10 @@ For frontend development, run `python cli.py serve` and `npm run dev --prefix fr
 
 The page refreshes its data every minute. The status strip shows one dot per feed (NVD, KEV, EPSS): healthy, stale (last success over 24h ago) or failed, based on what `poll` recorded in the `feed_runs` table; `poll` now carries on with the other feeds if one fails. The feed panel lists the newest NVD CVEs and KEV additions (up to 30% of the slots are kept for KEV, so the daily flood of NVD CVEs doesn't push them out). The Core in the centre shows the number of critical watchlist hits and has four states: `idle`, `thinking` (loading), `alert` (a new critical hit arrived) and `offline` (the API is unreachable). Add `?core=alert` (or another state) to the URL to preview a state, e.g. for recording.
 
+The Ask box (under the digest) sends your question to Gemini through the backend, together with the public fields of up to 8 stored CVEs picked locally: CVE IDs named in the question first, then descriptions containing the question's words, with ties broken by KEV, EPSS and CVSS (never by watchlist matches or local scores). "Ask MAVIS about this" on a watchlist hit pre-fills only the CVE ID. The question itself is sent as typed, so naming your own products in it is your choice.
+
+If the main Gemini model is overloaded (503) or out of quota (429), MAVIS switches to `GEMINI_FALLBACK_MODELS` (default `gemini-flash-lite-latest`) and shows which model answered.
+
 "Brief me" reads the digest summary aloud with the browser's Web Speech API. Edge's "Natural" voices sound best; they are online voices, so only Gemini's summary is ever spoken (never watchlist matches or scores). The design spec is `.claude/MAVIS_DESIGN.md`.
 
 ## Privacy boundary

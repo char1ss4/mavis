@@ -21,7 +21,7 @@ function SeverityBadge({ severity }: { severity: Severity | null }) {
   )
 }
 
-function HitRow({ hit }: { hit: WatchlistHit }) {
+function HitRow({ hit, onAskAbout }: { hit: WatchlistHit; onAskAbout: (cveId: string) => void }) {
   const [open, setOpen] = useState(false)
   return (
     <li className={`hit ${hit.severity === 'critical' ? 'hit--critical' : ''}`}>
@@ -47,6 +47,10 @@ function HitRow({ hit }: { hit: WatchlistHit }) {
             <dd>{hit.epss_percentile === null ? '-' : `${(hit.epss_percentile * 100).toFixed(1)}%`}</dd>
             <dt>Matched by</dt><dd>{hit.match_type === 'cpe' ? 'CPE (NVD product data)' : 'keyword in description'}</dd>
           </dl>
+          {/* Pre-fills only the public CVE ID, never the matched product from the watchlist */}
+          <button type="button" className="hit__ask" onClick={() => onAskAbout(hit.cve_id)}>
+            Ask MAVIS about this
+          </button>
         </div>
       )}
     </li>
@@ -54,7 +58,7 @@ function HitRow({ hit }: { hit: WatchlistHit }) {
 }
 
 /** Spec 5.3: watchlist hits, ranked by the backend's MAVIS score (not recomputed here). */
-export function HitsPanel({ state }: { state: HitsState }) {
+export function HitsPanel({ state, onAskAbout }: { state: HitsState; onAskAbout: (cveId: string) => void }) {
   return (
     <Panel title="Watchlist hits" count={state.status === 'ready' ? state.hits.length : undefined} className="hits">
       {state.status === 'loading' && <Skeleton rows={6} />}
@@ -66,7 +70,7 @@ export function HitsPanel({ state }: { state: HitsState }) {
       )}
       {state.status === 'ready' && state.hits.length > 0 && (
         <ol className="hits__list">
-          {state.hits.map(hit => <HitRow key={hit.cve_id} hit={hit} />)}
+          {state.hits.map(hit => <HitRow key={hit.cve_id} hit={hit} onAskAbout={onAskAbout} />)}
         </ol>
       )}
     </Panel>

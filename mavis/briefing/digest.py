@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from mavis import config
+from mavis.briefing.gemini import generate_structured
 from mavis.db import get_connection
 
 # The voice from the design spec: calm, concise, a little dry
@@ -67,47 +67,24 @@ def generate_digest(payload: list[dict[str, Any]], model: str) -> dict[str, Any]
         model: Gemini Flash model name.
 
     Returns:
-        The parsed structured digest.
+        The parsed structured digest, plus ``model``: the model that wrote it,
+        which differs from ``model`` if the requested one was overloaded.
     """
-    # Imported here so tests and `--help` don't need the SDK loaded
-    from google import genai
-    from google.genai import types
-
-    # Flash often returns 503 "high demand" for a few seconds; retry with backoff (2s, 4s, 8s...)
-    client = genai.Client(
-        api_key=config.GEMINI_API_KEY,
-        http_options=types.HttpOptions(retry_options=types.HttpRetryOptions(
-            attempts=5, initial_delay=2.0, exp_base=2.0, http_status_codes=[429, 500, 503],
-        )),
-    )
-    response = client.models.generate_content(
-        model=model,
-        contents=build_prompt(payload),
-        config=types.GenerateContentConfig(
-            system_instruction=_SYSTEM_INSTRUCTION,
-            response_mime_type='application/json',
-            response_schema=Digest,
-            temperature=0.2,
-        ),
-    )
-    # The SDK validates the JSON against Digest; parsed is None if that failed
-    if response.parsed is None:
-        raise ValueError("Gemini returned a response that doesn't match the digest schema")
-    return drop_unknown_items(response.parsed.model_dump(), payload)
+    parsed, model_used = generate_structured(model, build_prompt(payload), _SYSTEM_INSTRUCTION, Digest)
+    return {**drop_unknown_items(parsed.model_dump(), payload), 'model': model_used}
 
 
-def find_cached_digest(input_hash: str, model: str) -> dict[str, Any] | None:
-    """Return the newest stored digest for this exact payload and model, if any."""
+def find_cached_digest(input_hash: str) -> dict[str, Any] | None:
+    """Return the newest stored digest for this exact payload (from any model), if any."""
     conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT output_json FROM digests WHERE input_hash = %s AND model = %s "
-            "ORDER BY id DESC LIMIT 1",
-            (input_hash, model),
+            "SELECT output_json, model FROM digests WHERE input_hash = %s ORDER BY id DESC LIMIT 1",
+            (input_hash,),
         )
         row = cursor.fetchone()
-        return json.loads(row[0]) if row else None
+        return {**json.loads(row[0]), 'model': row[1]} if row else None
     finally:
         cursor.close()
         conn.close()

@@ -44,6 +44,13 @@
 
 .panel__count { color: var(--mv-text-muted); }
 
+.panel__footer {
+  margin-top: var(--mv-space-3);
+  padding-top: var(--mv-space-3);
+  border-top: var(--mv-line-hair) solid var(--mv-panel-edge);
+  animation: boot-fade 400ms var(--mv-ease) 1100ms both;
+}
+
 .panel__body {
   flex: 1;
   min-height: 0;

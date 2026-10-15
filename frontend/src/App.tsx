@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchDigest, fetchFeed, fetchHealth, fetchHits, NotFoundError } from './api'
+import { fetchDigest, fetchFeed, fetchHealth, fetchHits, NotFoundError, postAsk } from './api'
 import { Core, type CoreState } from './components/Core'
-import { DigestPanel, type DigestState } from './components/DigestPanel'
+import { DigestPanel, type AskState, type DigestState } from './components/DigestPanel'
 import { FeedPanel, type FeedState } from './components/FeedPanel'
 import { feedItemKey } from './format'
 import { HitsPanel, type HitsState } from './components/HitsPanel'
@@ -30,6 +30,9 @@ export default function App() {
   const [alerting, setAlerting] = useState(false)
   const [alerted, setAlerted] = useState(false)
   const [announcement, setAnnouncement] = useState('')
+  const [question, setQuestion] = useState('')
+  const [ask, setAsk] = useState<AskState>({ status: 'idle' })
+  const askInput = useRef<HTMLInputElement>(null)
   const [feed, setFeed] = useState<FeedState>({ status: 'loading' })
   const [health, setHealth] = useState<FeedHealth[] | null>(null)
   const knownCriticals = useRef<Set<string> | null>(null) // null until the first load
@@ -88,11 +91,25 @@ export default function App() {
     return () => { window.clearInterval(refresh); window.clearTimeout(alertTimer) }
   }, [])
 
+  const askMavis = () => {
+    const asked = question.trim()
+    setAsk({ status: 'thinking', question: asked })
+    postAsk(asked)
+      .then(answer => { setAsk({ status: 'answered', question: asked, answer }); setQuestion('') })
+      .catch(() => setAsk({ status: 'error', question: asked }))
+  }
+
+  /** "Ask MAVIS about this" on a hit: pre-fill the public CVE ID and focus the input. */
+  const askAbout = (cveId: string) => {
+    setQuestion(`What should I know about ${cveId}?`)
+    askInput.current?.focus()
+  }
+
   const criticalCount = hits.status === 'ready' ? criticalIds(hits.hits).size : null
 
   const coreState: CoreState = forced
     ?? (offline ? 'offline'
-      : hits.status === 'loading' ? 'thinking'
+      : hits.status === 'loading' || ask.status === 'thinking' ? 'thinking'
       : alerting ? 'alert'
       : 'idle')
 
@@ -100,11 +117,12 @@ export default function App() {
     <div className="hud">
       <StatusStrip health={health} />
 
-      <HitsPanel state={hits} />
+      <HitsPanel state={hits} onAskAbout={askAbout} />
 
       <Core state={coreState} count={criticalCount} alerted={alerted || forced === 'alert'} />
 
-      <DigestPanel state={digest} />
+      <DigestPanel state={digest} ask={ask} question={question} onQuestionChange={setQuestion}
+                   onAsk={askMavis} onClearAnswer={() => setAsk({ status: 'idle' })} inputRef={askInput} />
 
       <FeedPanel state={feed} health={health ?? []} />
 

@@ -43,6 +43,14 @@ export type CveBrief = {
   urgency: 'patch now' | 'patch this week' | 'monitor'
 }
 
+export type AskAnswer = {
+  text: string
+  cited_cve_ids: string[]
+  sources: string[] // feeds the cited CVEs' data came from
+  generated_at: string
+  model: string
+}
+
 export type Digest = {
   id: number
   generated_at: string

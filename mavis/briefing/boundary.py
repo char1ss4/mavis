@@ -48,3 +48,29 @@ def build_llm_payload(cves: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
     payload.sort(key=lambda record: record['cve_id'])
     return payload
+
+
+MAX_QUESTION_CHARS = 500
+
+
+def build_ask_payload(question: str, cves: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build the outbound payload for an Ask question: the question plus public CVE context.
+
+    The question is the user's own text, sent as typed (cut to MAX_QUESTION_CHARS).
+    MAVIS adds nothing local to it: the CVE context goes through
+    :func:`build_llm_payload`, so it carries only allowlisted public fields.
+
+    Args:
+        question: What the user typed in the Ask box.
+        cves: CVE records chosen as context, possibly carrying local-only fields.
+
+    Returns:
+        ``{'question': str, 'cves': [sanitised records]}``.
+
+    Raises:
+        ValueError: If the question is empty.
+    """
+    question = ' '.join(question.split())[:MAX_QUESTION_CHARS]
+    if not question:
+        raise ValueError('The question is empty')
+    return {'question': question, 'cves': build_llm_payload(cves)}

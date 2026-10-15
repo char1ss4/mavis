@@ -224,7 +224,7 @@ def cmd_brief(args: argparse.Namespace) -> None:
         return
 
     input_hash = digest_mod.payload_hash(payload)
-    cached = None if args.fresh else digest_mod.find_cached_digest(input_hash, args.model)
+    cached = None if args.fresh else digest_mod.find_cached_digest(input_hash)
     if cached:
         digest, note = cached, "reused a stored digest for the same CVEs (--fresh to regenerate)"
     else:
@@ -233,7 +233,8 @@ def cmd_brief(args: argparse.Namespace) -> None:
             digest = digest_mod.generate_digest(payload, args.model)
         except Exception as exc:
             sys.exit(f"The digest couldn't be generated. Raw feed data is still current. ({exc})")
-        digest_id = digest_mod.save_digest(payload, digest, args.model)
+        # The model that answered, which is a fallback if the requested one was overloaded
+        digest_id = digest_mod.save_digest(payload, digest, digest['model'])
         note = f"saved as digest #{digest_id}"
 
     print()
@@ -241,7 +242,7 @@ def cmd_brief(args: argparse.Namespace) -> None:
     print()
     for line in format_brief(digest, {r['cve_id']: r for r in top}, shutil.get_terminal_size().columns):
         print(line)
-    print(f"Sources: NVD, CISA KEV, FIRST EPSS | {args.model} | {note}")
+    print(f"Sources: NVD, CISA KEV, FIRST EPSS | {digest['model']} | {note}")
 
 
 def cmd_serve(args: argparse.Namespace) -> None:

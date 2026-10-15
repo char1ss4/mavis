@@ -6,6 +6,8 @@ type PanelProps = {
   count?: number | string
   className?: string
   children: ReactNode
+  /** Pinned below the scrolling body (e.g. the Ask input) */
+  footer?: ReactNode
 }
 
 /** The 12px L-shaped stroke drawn in each corner; rotated per corner by CSS. */
@@ -18,7 +20,7 @@ function CornerBracket({ corner }: { corner: 'tl' | 'tr' | 'bl' | 'br' }) {
 }
 
 /** Base glass panel (spec 5.1): title left, item count right, corner brackets, scrolling body. */
-export function Panel({ title, count, className = '', children }: PanelProps) {
+export function Panel({ title, count, className = '', children, footer }: PanelProps) {
   return (
     <section className={`panel ${className}`} aria-label={title}>
       <CornerBracket corner="tl" />
@@ -30,6 +32,7 @@ export function Panel({ title, count, className = '', children }: PanelProps) {
         {count !== undefined && <span className="panel__count data">{count}</span>}
       </header>
       <div className="panel__body">{children}</div>
+      {footer && <div className="panel__footer">{footer}</div>}
     </section>
   )
 }

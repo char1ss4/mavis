@@ -14,8 +14,11 @@ from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from mavis import config
+from mavis.briefing.ask import answer_question, find_context
+from mavis.briefing.boundary import build_ask_payload
 from mavis.briefing.digest import CveBrief, latest_digest
 from mavis.feed import recent_items
 from mavis.runs import feed_health
@@ -55,6 +58,18 @@ class FeedHealth(BaseModel):
     last_attempt_at: datetime | None
     last_success_at: datetime | None
     last_error: str | None   # set only when the most recent attempt failed
+
+
+class AskRequest(BaseModel):
+    question: str = Field(max_length=2000)
+
+
+class AskResponse(BaseModel):
+    text: str
+    cited_cve_ids: list[str]
+    sources: list[str]   # feeds the cited CVEs' data came from
+    generated_at: datetime
+    model: str
 
 
 class DigestResponse(BaseModel):
@@ -135,6 +150,22 @@ def get_feed(limit: int = 50) -> list[FeedItem]:
 def get_health() -> list[FeedHealth]:
     """When each feed was last polled and whether it worked (from `poll`'s feed_runs records)."""
     return [FeedHealth(**row) for row in feed_health()]
+
+
+@app.post('/api/ask', response_model=AskResponse)
+def post_ask(request: AskRequest) -> AskResponse:
+    """Answer a question with Gemini, using relevant stored CVEs as public context."""
+    context = find_context(request.question, fetch_scoring_inputs())
+    try:
+        # The only data sent: the question as typed and the context's public fields
+        payload = build_ask_payload(request.question, context)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        answer = answer_question(payload, config.GEMINI_MODEL)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"The answer couldn't be generated ({exc})") from exc
+    return AskResponse(**answer, generated_at=datetime.now())
 
 
 @app.get('/api/digest', response_model=DigestResponse)
