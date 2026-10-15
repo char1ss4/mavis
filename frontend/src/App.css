@@ -13,21 +13,10 @@
   perspective: 1200px;
 }
 
-.hud__strip  { grid-area: strip; display: flex; align-items: center; justify-content: space-between; }
 .hits        { grid-area: hits;   transform: perspective(1200px) rotateY(4deg);  transform-origin: left center; }
 .core        { grid-area: core; }
 .digest      { grid-area: digest; }
 .feed        { grid-area: feed;   transform: perspective(1200px) rotateY(-4deg); transform-origin: right center; }
-
-.hud__wordmark {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: 0.3em;
-  color: var(--mv-primary);
-  text-shadow: var(--mv-glow);
-  animation: boot-fade 400ms var(--mv-ease) 900ms both;
-}
 
 
 /* Below 1100px: one column in the order Core, Watchlist hits, Digest, Feed; no tilt */

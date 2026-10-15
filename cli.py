@@ -32,48 +32,71 @@ class StageTimer:
 def cmd_poll(args: argparse.Namespace) -> None:
     """Pull recent CVEs from NVD plus KEV and EPSS data into MySQL."""
     # Imported here so `--help` works without a .env or network access
+    from mavis import runs
     from mavis.ingest import epss, kev, nvd
 
     timer = StageTimer()
     started = time.monotonic()
-    print(f"Polling NVD for CVEs published in the last {args.days} day(s)...")
 
-    with timer.stage("NVD fetch"):
-        rows = [nvd.parse_cve(cve) for cve in nvd.fetch_recent_cves(args.days)]
-    with timer.stage("NVD save"):
-        saved = nvd.save_cves(rows)
-    unscored = sum(1 for row in rows if row['cvss_score'] is None)
-    print(f"NVD: saved {saved} CVEs ({unscored} without a CVSS score yet)")
+    def poll_nvd() -> int:
+        print(f"Polling NVD for CVEs published in the last {args.days} day(s)...")
+        with timer.stage("NVD fetch"):
+            rows = [nvd.parse_cve(cve) for cve in nvd.fetch_recent_cves(args.days)]
+        with timer.stage("NVD save"):
+            saved = nvd.save_cves(rows)
+        unscored = sum(1 for row in rows if row['cvss_score'] is None)
+        print(f"NVD: saved {saved} CVEs ({unscored} without a CVSS score yet)")
 
-    # KEV lists CVEs long after publication, so fetch those separately by KEV date
-    print(f"Polling NVD for CVEs added to KEV in the last {args.kev_days} day(s)...")
-    with timer.stage("NVD KEV-date fetch"):
-        kev_cve_rows = [nvd.parse_cve(cve) for cve in nvd.fetch_recent_kev_cves(args.kev_days)]
-    with timer.stage("NVD KEV-date save"):
-        saved_kev_cves = nvd.save_cves(kev_cve_rows)
-    print(f"NVD: saved {saved_kev_cves} recently added KEV CVEs")
+        # KEV lists CVEs long after publication, so fetch those separately by KEV date
+        print(f"Polling NVD for CVEs added to KEV in the last {args.kev_days} day(s)...")
+        with timer.stage("NVD KEV-date fetch"):
+            kev_cve_rows = [nvd.parse_cve(cve) for cve in nvd.fetch_recent_kev_cves(args.kev_days)]
+        with timer.stage("NVD KEV-date save"):
+            saved_kev_cves = nvd.save_cves(kev_cve_rows)
+        print(f"NVD: saved {saved_kev_cves} recently added KEV CVEs")
+        return saved + saved_kev_cves
 
-    print("Downloading the CISA KEV catalog...")
-    with timer.stage("KEV fetch"):
-        kev_rows = [kev.parse_kev_entry(entry) for entry in kev.fetch_kev()]
-    with timer.stage("KEV save"):
-        saved_kev = kev.save_kev(kev_rows)
-    print(f"KEV: saved {saved_kev} known-exploited CVEs")
+    def poll_kev() -> int:
+        print("Downloading the CISA KEV catalog...")
+        with timer.stage("KEV fetch"):
+            kev_rows = [kev.parse_kev_entry(entry) for entry in kev.fetch_kev()]
+        with timer.stage("KEV save"):
+            saved_kev = kev.save_kev(kev_rows)
+        print(f"KEV: saved {saved_kev} known-exploited CVEs")
+        return saved_kev
 
-    # Every stored CVE, not just this poll's: EPSS is re-scored daily
-    with timer.stage("CVE ID lookup"):
-        cve_ids = nvd.stored_cve_ids()
-    print(f"Fetching EPSS scores for {len(cve_ids)} stored CVEs...")
-    with timer.stage("EPSS fetch"):
-        epss_rows = [epss.parse_epss(item) for item in epss.fetch_epss(cve_ids)]
-    with timer.stage("EPSS save"):
-        saved_epss = epss.save_epss(epss_rows)
-    print(f"EPSS: saved {saved_epss} scores ({len(cve_ids) - saved_epss} CVEs not scored by EPSS yet)")
+    def poll_epss() -> int:
+        # Every stored CVE, not just this poll's: EPSS is re-scored daily
+        with timer.stage("CVE ID lookup"):
+            cve_ids = nvd.stored_cve_ids()
+        print(f"Fetching EPSS scores for {len(cve_ids)} stored CVEs...")
+        with timer.stage("EPSS fetch"):
+            epss_rows = [epss.parse_epss(item) for item in epss.fetch_epss(cve_ids)]
+        with timer.stage("EPSS save"):
+            saved_epss = epss.save_epss(epss_rows)
+        print(f"EPSS: saved {saved_epss} scores ({len(cve_ids) - saved_epss} CVEs not scored by EPSS yet)")
+        return saved_epss
+
+    # One feed failing (e.g. NVD down) shouldn't stop the others; each outcome is
+    # recorded in feed_runs for the HUD's status strip
+    failed = []
+    for feed, poll in (('NVD', poll_nvd), ('KEV', poll_kev), ('EPSS', poll_epss)):
+        try:
+            items = poll()
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            print(f"{feed}: FAILED ({error})")
+            runs.record_run(feed, ok=False, error=error)
+            failed.append(feed)
+        else:
+            runs.record_run(feed, ok=True, items=items)
 
     elapsed = time.monotonic() - started
     if args.timing:
         print(f"Timing: {timer.summary()}")
     print(f"Done in {elapsed:.1f}s")
+    if failed:
+        sys.exit(f"Failed feeds: {', '.join(failed)} (other feeds were saved)")
 
 
 def _match_label(row: dict[str, Any]) -> str:

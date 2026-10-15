@@ -16,6 +16,24 @@ export type WatchlistHit = {
   description: string
 }
 
+export type FeedItem = {
+  source: 'NVD' | 'KEV'
+  cve_id: string
+  title: string
+  url: string | null
+  at: string // ISO 8601
+  watchlist_match: boolean
+}
+
+export type FeedName = 'NVD' | 'KEV' | 'EPSS'
+
+export type FeedHealth = {
+  feed: FeedName
+  last_attempt_at: string | null
+  last_success_at: string | null
+  last_error: string | null // set only when the most recent attempt failed
+}
+
 export type CveBrief = {
   cve_id: string
   headline: string

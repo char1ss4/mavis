@@ -38,6 +38,19 @@ CREATE TABLE IF NOT EXISTS epss_scores (
     PRIMARY KEY (cve_id, score_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- One row per feed fetch during `poll`, for the HUD's feed-health dots.
+-- mavis/runs.py also creates this table, so existing databases don't need a reset.
+CREATE TABLE IF NOT EXISTS feed_runs (
+    id           INT           NOT NULL AUTO_INCREMENT,
+    feed         VARCHAR(10)   NOT NULL,
+    finished_at  DATETIME      NOT NULL,
+    ok           BOOLEAN       NOT NULL,
+    items        INT           NULL,
+    error        VARCHAR(500)  NULL,
+    PRIMARY KEY (id),
+    INDEX idx_feed_runs_feed (feed, finished_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS digests (
     id           INT           NOT NULL AUTO_INCREMENT,
     created_at   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,

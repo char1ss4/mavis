@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchDigest, fetchHits, NotFoundError } from './api'
+import { fetchDigest, fetchFeed, fetchHealth, fetchHits, NotFoundError } from './api'
 import { Core, type CoreState } from './components/Core'
 import { DigestPanel, type DigestState } from './components/DigestPanel'
+import { FeedPanel, type FeedState } from './components/FeedPanel'
+import { feedItemKey } from './format'
 import { HitsPanel, type HitsState } from './components/HitsPanel'
-import { Panel } from './components/Panel'
-import type { WatchlistHit } from './types'
+import { StatusStrip } from './components/StatusStrip'
+import type { FeedHealth, WatchlistHit } from './types'
 import './App.css'
 
 const REFRESH_MS = 60_000
@@ -28,7 +30,10 @@ export default function App() {
   const [alerting, setAlerting] = useState(false)
   const [alerted, setAlerted] = useState(false)
   const [announcement, setAnnouncement] = useState('')
+  const [feed, setFeed] = useState<FeedState>({ status: 'loading' })
+  const [health, setHealth] = useState<FeedHealth[] | null>(null)
   const knownCriticals = useRef<Set<string> | null>(null) // null until the first load
+  const knownFeedKeys = useRef<Set<string> | null>(null)
   const [forced] = useState(forcedCoreState) // read the URL once
 
   useEffect(() => {
@@ -65,9 +70,21 @@ export default function App() {
         return prev.status === 'ready' ? prev : { status: 'error' }
       }))
 
-    loadHits()
-    loadDigest()
-    const refresh = window.setInterval(() => { loadHits(); loadDigest() }, REFRESH_MS)
+    const loadFeed = () => fetchFeed()
+      .then(items => {
+        const keys = items.map(feedItemKey)
+        // Only items that appear after the first load slide in
+        const fresh = knownFeedKeys.current ? new Set(keys.filter(k => !knownFeedKeys.current!.has(k))) : new Set<string>()
+        knownFeedKeys.current = new Set([...(knownFeedKeys.current ?? []), ...keys])
+        setFeed({ status: 'ready', items, fresh })
+      })
+      .catch(() => setFeed(prev => (prev.status === 'ready' ? prev : { status: 'error' })))
+
+    const loadHealth = () => fetchHealth().then(setHealth).catch(() => { /* keep the last known health */ })
+
+    const loadAll = () => { loadHits(); loadDigest(); loadFeed(); loadHealth() }
+    loadAll()
+    const refresh = window.setInterval(loadAll, REFRESH_MS)
     return () => { window.clearInterval(refresh); window.clearTimeout(alertTimer) }
   }, [])
 
@@ -81,9 +98,7 @@ export default function App() {
 
   return (
     <div className="hud">
-      <header className="hud__strip">
-        <h1 className="hud__wordmark">MAVIS</h1>
-      </header>
+      <StatusStrip health={health} />
 
       <HitsPanel state={hits} />
 
@@ -91,9 +106,7 @@ export default function App() {
 
       <DigestPanel state={digest} />
 
-      <Panel title="Feed" className="feed">
-        <p className="muted">The live feed isn't connected yet.</p>
-      </Panel>
+      <FeedPanel state={feed} health={health ?? []} />
 
       <div className="visually-hidden" aria-live="polite">{announcement}</div>
     </div>

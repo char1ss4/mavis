@@ -17,6 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from mavis.briefing.digest import CveBrief, latest_digest
+from mavis.feed import recent_items
+from mavis.runs import feed_health
 from mavis.scoring.inputs import fetch_scoring_inputs
 from mavis.scoring.ranking import rank_cves
 from mavis.scoring.watchlist import load_watchlist
@@ -37,6 +39,22 @@ class WatchlistHit(BaseModel):
     mavis_score: float
     published_at: datetime | None
     description: str
+
+
+class FeedItem(BaseModel):
+    source: Literal['NVD', 'KEV']
+    cve_id: str
+    title: str
+    url: str | None
+    at: datetime
+    watchlist_match: bool
+
+
+class FeedHealth(BaseModel):
+    feed: Literal['NVD', 'KEV', 'EPSS']
+    last_attempt_at: datetime | None
+    last_success_at: datetime | None
+    last_error: str | None   # set only when the most recent attempt failed
 
 
 class DigestResponse(BaseModel):
@@ -104,6 +122,19 @@ app = FastAPI(title='MAVIS', docs_url='/api/docs', openapi_url='/api/openapi.jso
 def get_hits(limit: int = 50) -> list[WatchlistHit]:
     """CVEs matching the watchlist, highest MAVIS score first."""
     return cached_hits()[:limit]
+
+
+@app.get('/api/feed', response_model=list[FeedItem])
+def get_feed(limit: int = 50) -> list[FeedItem]:
+    """Newest NVD CVEs and KEV additions, newest first, flagged if they match the watchlist."""
+    matched = {hit.cve_id for hit in cached_hits()}
+    return [FeedItem(**item) for item in recent_items(matched, limit)]
+
+
+@app.get('/api/health', response_model=list[FeedHealth])
+def get_health() -> list[FeedHealth]:
+    """When each feed was last polled and whether it worked (from `poll`'s feed_runs records)."""
+    return [FeedHealth(**row) for row in feed_health()]
 
 
 @app.get('/api/digest', response_model=DigestResponse)
