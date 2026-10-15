@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import './Panel.css'
 
 type PanelProps = {
@@ -8,6 +8,9 @@ type PanelProps = {
   children: ReactNode
   /** Pinned below the scrolling body (e.g. the Ask input) */
   footer?: ReactNode
+  /** Controls on the right of the title row (e.g. the full-screen button) */
+  actions?: ReactNode
+  panelRef?: Ref<HTMLElement>
 }
 
 /** The 12px L-shaped stroke drawn in each corner; rotated per corner by CSS. */
@@ -20,9 +23,9 @@ function CornerBracket({ corner }: { corner: 'tl' | 'tr' | 'bl' | 'br' }) {
 }
 
 /** Base glass panel (spec 5.1): title left, item count right, corner brackets, scrolling body. */
-export function Panel({ title, count, className = '', children, footer }: PanelProps) {
+export function Panel({ title, count, className = '', children, footer, actions, panelRef }: PanelProps) {
   return (
-    <section className={`panel ${className}`} aria-label={title}>
+    <section ref={panelRef} className={`panel ${className}`} aria-label={title}>
       <CornerBracket corner="tl" />
       <CornerBracket corner="tr" />
       <CornerBracket corner="bl" />
@@ -30,6 +33,7 @@ export function Panel({ title, count, className = '', children, footer }: PanelP
       <header className="panel__header">
         <h2 className="panel__title">{title}</h2>
         {count !== undefined && <span className="panel__count data">{count}</span>}
+        {actions}
       </header>
       <div className="panel__body">{children}</div>
       {footer && <div className="panel__footer">{footer}</div>}

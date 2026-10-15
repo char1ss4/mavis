@@ -43,6 +43,7 @@
 }
 
 .panel__count { color: var(--mv-text-muted); }
+.panel__header { gap: var(--mv-space-3); }
 
 .panel__footer {
   margin-top: var(--mv-space-3);

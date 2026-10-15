@@ -35,6 +35,37 @@
 
 .digest__attribution { margin: var(--mv-space-2) 0 0; }
 
+/* ---- Full screen ---- */
+.digest__fullscreen {
+  margin-left: auto;
+  background: none;
+  border: var(--mv-line-hair) solid var(--mv-panel-edge);
+  color: var(--mv-text-muted);
+  padding: 2px var(--mv-space-2);
+  cursor: pointer;
+  transition: color var(--mv-fast) var(--mv-ease), border-color var(--mv-fast) var(--mv-ease);
+}
+.digest__fullscreen:hover { color: var(--mv-primary); border-color: var(--mv-primary); }
+
+/* Full screen has nothing behind the glass, so give it the page background and grid,
+   and larger text that reads well on a 1080p recording */
+.digest:fullscreen {
+  padding: var(--mv-space-6) max(var(--mv-space-6), calc((100vw - 1100px) / 2));
+  background-color: var(--mv-bg);
+  background-image:
+    linear-gradient(to right, rgb(42 110 120 / 6%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(42 110 120 / 6%) 1px, transparent 1px);
+  background-size: 40px 40px;
+  font-size: 22px;
+}
+.digest:fullscreen .panel__title { font-size: 18px; }
+.digest:fullscreen .digest__text,
+.digest:fullscreen .answer { max-width: none; }
+.digest:fullscreen .data { font-size: 16px; }
+.digest:fullscreen .ask__input { font-size: 20px; }
+.digest:fullscreen .ask__note { font-size: 13px; }
+.digest:fullscreen .panel__corner { width: 20px; height: 20px; }
+
 /* ---- Answer ---- */
 .answer { max-width: 70ch; }
 .answer__header { display: flex; justify-content: space-between; align-items: baseline; }

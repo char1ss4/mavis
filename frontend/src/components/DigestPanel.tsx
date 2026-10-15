@@ -1,6 +1,7 @@
-import type { FormEvent, RefObject } from 'react'
+import { useEffect, useRef, type FormEvent, type RefObject } from 'react'
 import type { AskAnswer, Digest } from '../types'
 import { relativeTime } from '../format'
+import { useFullscreen } from '../useFullscreen'
 import { useSpeech } from '../useSpeech'
 import { useTypeOn } from '../useTypeOn'
 import { Panel } from './Panel'
@@ -28,8 +29,26 @@ type AskProps = {
   inputRef: RefObject<HTMLInputElement | null>
 }
 
-function VoiceControls({ text, label }: { text: string; label: string }) {
+type VoiceProps = {
+  text: string
+  label: string
+  /** When this changes to a new value, `text` is spoken automatically (used for new answers) */
+  autoSpeakKey?: string
+}
+
+function VoiceControls({ text, label, autoSpeakKey }: VoiceProps) {
   const { supported, voices, voice, chooseVoice, speaking, speak, stop } = useSpeech()
+
+  // Speak each new answer once; the ref stops a voice change from replaying it.
+  // Browsers allow speech only after the user has interacted; pressing Ask counts.
+  const spokenKey = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (autoSpeakKey && autoSpeakKey !== spokenKey.current) {
+      spokenKey.current = autoSpeakKey
+      speak(text)
+    }
+  }, [autoSpeakKey, speak, text])
+
   if (!supported) return null
   const english = voices.filter(v => v.lang.startsWith('en'))
   return (
@@ -111,9 +130,21 @@ export function DigestPanel({ state, ...askProps }: { state: DigestState } & Ask
   const spoken = ask.status === 'answered' ? ask.answer.text
     : state.status === 'ready' ? state.digest.summary : null
 
+  const fullscreen = useFullscreen<HTMLElement>()
+  const fullscreenButton = fullscreen.supported && (
+    <button type="button" className="digest__fullscreen data" onClick={fullscreen.toggle}
+            aria-pressed={fullscreen.active}>
+      {fullscreen.active ? 'Exit full screen' : 'Full screen'}
+    </button>
+  )
+
   return (
-    <Panel title="Digest" className="digest" footer={<AskBox {...askProps} />}>
-      {spoken && <VoiceControls text={spoken} label={ask.status === 'answered' ? 'Read answer' : 'Brief me'} />}
+    <Panel title="Digest" className="digest" footer={<AskBox {...askProps} />}
+           actions={fullscreenButton} panelRef={fullscreen.ref}>
+      {spoken && (
+        <VoiceControls text={spoken} label={ask.status === 'answered' ? 'Read answer' : 'Brief me'}
+                       autoSpeakKey={ask.status === 'answered' ? ask.answer.generated_at : undefined} />
+      )}
       {ask.status !== 'idle' && <Answer ask={ask} onClear={onClearAnswer} />}
       {ask.status === 'idle' && (
         <>
