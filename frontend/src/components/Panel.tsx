@@ -12,7 +12,7 @@ type PanelProps = {
 function CornerBracket({ corner }: { corner: 'tl' | 'tr' | 'bl' | 'br' }) {
   return (
     <svg className={`panel__corner panel__corner--${corner}`} width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-      <path d="M0.75 12 V0.75 H12" fill="none" />
+      <path d="M0.75 12 V0.75 H12" fill="none" pathLength={1} />
     </svg>
   )
 }

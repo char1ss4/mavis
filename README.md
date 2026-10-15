@@ -66,6 +66,8 @@ python cli.py serve                 # API + built HUD on http://127.0.0.1:8000 (
 
 For frontend development, run `python cli.py serve` and `npm run dev --prefix frontend` together; Vite (http://127.0.0.1:5173) reloads on save and forwards `/api` to the backend.
 
+The page refreshes its data every minute. The Core in the centre shows the number of critical watchlist hits and has four states: `idle`, `thinking` (loading), `alert` (a new critical hit arrived) and `offline` (the API is unreachable). Add `?core=alert` (or another state) to the URL to preview a state, e.g. for recording.
+
 "Brief me" reads the digest summary aloud with the browser's Web Speech API. Edge's "Natural" voices sound best; they are online voices, so only Gemini's summary is ever spoken (never watchlist matches or scores). The design spec is `.claude/MAVIS_DESIGN.md`.
 
 ## Privacy boundary

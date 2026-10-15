@@ -19,6 +19,14 @@
 .panel__corner--br { bottom: -1px; right: -1px; transform: rotate(180deg); }
 .panel__corner--bl { bottom: -1px; left: -1px; transform: rotate(270deg); }
 
+/* Boot (spec 6, step 3): brackets draw 900-1200ms, then the panel fades to full opacity by 1500ms */
+/* The glass and content fade, not the whole panel, so the brackets stay visible while they draw */
+.panel { animation: boot-glass 400ms var(--mv-ease) 1100ms both; }
+.panel__header, .panel__body { animation: boot-fade 400ms var(--mv-ease) 1100ms both; }
+.panel__corner path { animation: boot-draw 300ms var(--mv-ease) 900ms both; }
+
+@keyframes boot-glass { from { background-color: transparent; border-color: transparent; } }
+
 .panel__header {
   display: flex;
   justify-content: space-between;

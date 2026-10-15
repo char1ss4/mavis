@@ -47,12 +47,6 @@ html, body, #root { height: 100%; margin: 0; }
 
 body {
   background-color: var(--mv-bg);
-  /* Faint 40px grid (primary-dim at 6%) plus a 1px scanline at 3% */
-  background-image:
-    repeating-linear-gradient(to bottom, rgb(110 231 240 / 3%) 0 1px, transparent 1px 4px),
-    linear-gradient(to right, rgb(42 110 120 / 6%) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(42 110 120 / 6%) 1px, transparent 1px);
-  background-size: auto, 40px 40px, 40px 40px;
   color: var(--mv-text);
   font-family: var(--mv-font-ui);
   font-size: 16px;
@@ -68,6 +62,35 @@ button, select, input { font: inherit; color: inherit; }
 
 .data { font-family: var(--mv-font-data); font-size: 13px; font-variant-numeric: tabular-nums; }
 .muted { color: var(--mv-text-muted); }
+
+/* Faint 40px grid (primary-dim at 6%) plus a 1px scanline at 3%; fades in first during boot */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(to bottom, rgb(110 231 240 / 3%) 0 1px, transparent 1px 4px),
+    linear-gradient(to right, rgb(42 110 120 / 6%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(42 110 120 / 6%) 1px, transparent 1px);
+  background-size: auto, 40px 40px, 40px 40px;
+  animation: boot-fade 400ms var(--mv-ease) both;
+}
+
+/* ---- Boot sequence keyframes (spec 6). Animations use fill-mode "both", so the
+   start values only exist inside keyframes and switching animations off shows the final state. ---- */
+@keyframes boot-fade { from { opacity: 0; } }
+@keyframes boot-draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
+
+/* Reduced motion (spec 2): every loop stops and the boot sequence becomes a 200ms fade */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  #root { animation: boot-fade 200ms ease-out both !important; }
+}
 
 .visually-hidden {
   position: absolute; width: 1px; height: 1px; overflow: hidden;

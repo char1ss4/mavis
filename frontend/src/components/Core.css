@@ -1,0 +1,105 @@
+.core {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+
+.core__frame {
+  position: relative;
+  height: min(360px, 100%);
+  aspect-ratio: 1;
+}
+
+.core__svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* ---- Rings ---- */
+.core__ring {
+  transform-box: view-box;
+  transform-origin: 180px 180px;
+  animation: core-spin 60s linear infinite;
+}
+.core__ring--middle { animation-duration: 90s; animation-direction: reverse; }
+.core__ring--inner  { animation-duration: 140s; }
+
+.core__guide, .core__dashes, .core__highlight, .core__tick, .core__pulse { fill: none; }
+.core__guide     { stroke: var(--mv-primary-dim); stroke-width: var(--mv-line-hair); opacity: 0.35; }
+.core__dashes    { stroke: var(--mv-primary-dim); stroke-width: 3; }
+.core__highlight { stroke: var(--mv-primary); stroke-width: 3; filter: drop-shadow(0 0 4px rgb(110 231 240 / 60%)); }
+.core__tick      { stroke: var(--mv-primary-dim); stroke-width: var(--mv-line-thin); }
+.core__highlight, .core__tick, .core__dashes { transition: stroke var(--mv-med) var(--mv-ease); }
+
+/* ---- Centre (real text, not SVG, so screen readers and the metric font work) ---- */
+.core__centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+.core__metric {
+  font-size: 56px;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--mv-text);
+  transition: color var(--mv-med) var(--mv-ease);
+}
+.core__metric--alert { color: var(--mv-sev-critical); text-shadow: var(--mv-glow-crit); }
+.core__label {
+  margin-top: var(--mv-space-2);
+  max-width: 160px;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--mv-text-muted);
+}
+
+/* ---- States ---- */
+
+/* thinking: inner ring speeds to 4s per revolution and pulses 0.6 -> 1 */
+.core[data-state="thinking"] .core__ring--inner {
+  animation: core-spin 4s linear infinite, core-breathe 0.8s ease-in-out infinite alternate;
+}
+
+/* alert: highlights turn critical and one pulse ring expands outward */
+.core[data-state="alert"] .core__highlight {
+  stroke: var(--mv-sev-critical);
+  filter: drop-shadow(0 0 6px rgb(255 77 94 / 70%));
+}
+.core__pulse {
+  stroke: var(--mv-sev-critical);
+  stroke-width: 2;
+  transform-box: view-box;
+  transform-origin: 180px 180px;
+  animation: core-pulse-out 600ms var(--mv-ease) forwards;
+}
+
+/* offline: rings stop and everything drops to muted */
+.core[data-state="offline"] .core__ring { animation-play-state: paused; }
+.core[data-state="offline"] :is(.core__highlight, .core__dashes, .core__tick) { stroke: var(--mv-text-muted); filter: none; }
+.core[data-state="offline"] .core__highlight { opacity: 0.6; }
+.core[data-state="offline"] .core__metric { font-size: 32px; color: var(--mv-text-muted); }
+
+@keyframes core-spin { to { transform: rotate(360deg); } }
+@keyframes core-breathe { from { opacity: 0.6; } to { opacity: 1; } }
+@keyframes core-pulse-out {
+  from { transform: scale(1); opacity: 0.9; }
+  to   { transform: scale(1.7); opacity: 0; }
+}
+
+/* ---- Boot (spec 6, step 2): rings draw themselves 300-1100ms, outer first ---- */
+.core__guide { animation: boot-draw 500ms var(--mv-ease) both; }
+.core__ring--outer  .core__guide { animation-delay: 300ms; }
+.core__ring--middle .core__guide { animation-delay: 450ms; }
+.core__ring--inner  .core__guide { animation-delay: 600ms; }
+.core__ring > :not(.core__guide) { animation: boot-fade 400ms var(--mv-ease) both; }
+.core__ring--outer  > :not(.core__guide) { animation-delay: 500ms; }
+.core__ring--middle > :not(.core__guide) { animation-delay: 600ms; }
+.core__ring--inner  > :not(.core__guide) { animation-delay: 700ms; }
+
+/* Reduced motion: no rotation; thinking shows as a dimmed inner ring instead of a pulse */
+@media (prefers-reduced-motion: reduce) {
+  .core[data-state="thinking"] .core__ring--inner { opacity: 0.6; }
+  .core__pulse { display: none; }
+}
