@@ -22,7 +22,11 @@ _STOPWORDS = frozenset("""
     some tell than that the their them then there these they this those to today update updated
     vulnerabilities vulnerability vulnerable was we were what when where which who why will with would
     you your attack attacker attackers security issue issues flaw flaws bug bugs severe critical
+    most more least active actively currently current right being worst biggest top start know need
+    look looking happening going wild threat threats priority prioritize important matters
 """.split())
+
+MAX_KEYWORD_MATCHES = 5  # the remaining slots always go to the most exploited CVEs
 
 _SYSTEM_INSTRUCTION = """\
 You are MAVIS, a vulnerability intelligence assistant answering one question.
@@ -44,10 +48,12 @@ class AskAnswer(BaseModel):
 def find_context(question: str, rows: list[dict[str, Any]], limit: int = MAX_CONTEXT_CVES) -> list[dict[str, Any]]:
     """Pick the stored CVEs most relevant to a question. Runs locally.
 
-    CVE IDs named in the question come first, then CVEs whose description contains
-    the most question words. Ties are broken by public evidence (KEV, EPSS, CVSS),
-    never by watchlist matches or local scores, so the choice reveals nothing local.
-    If nothing matches, the most actively exploited CVEs are used instead.
+    CVE IDs named in the question come first, then up to MAX_KEYWORD_MATCHES CVEs whose
+    description contains the most question words, then the most actively exploited CVEs
+    fill the remaining slots, so the model always sees the strongest exploitation
+    evidence (otherwise it may wrongly say nothing is exploited). Ordering uses public
+    evidence only (KEV, EPSS, CVSS), never watchlist matches or local scores, so the
+    choice reveals nothing local.
     """
     by_id = {row['cve_id']: row for row in rows}
     named = [by_id[cve_id] for cve_id in dict.fromkeys(m.upper() for m in _CVE_ID.findall(question))
@@ -69,10 +75,10 @@ def find_context(question: str, rows: list[dict[str, Any]], limit: int = MAX_CON
         if hits:
             scored.append((hits, evidence(row), row))
     scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    context = named + [row for _, _, row in scored]
+    context = named + [row for _, _, row in scored][:MAX_KEYWORD_MATCHES]
 
-    if not context:
-        context = sorted(rows, key=evidence, reverse=True)
+    chosen = {row['cve_id'] for row in context}
+    context += [row for row in sorted(rows, key=evidence, reverse=True) if row['cve_id'] not in chosen]
     return context[:limit]
 
 

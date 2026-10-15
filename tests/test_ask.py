@@ -27,7 +27,8 @@ ROWS = [
 def test_named_cve_ids_come_first() -> None:
     context = find_context('Tell me about cve-2026-0001 and OpenSSL', ROWS)
 
-    assert [r['cve_id'] for r in context] == ['CVE-2026-0001', 'CVE-2026-0003', 'CVE-2026-0002']
+    # named ID, then OpenSSL matches (KEV first), then the remaining slot filled by evidence
+    assert [r['cve_id'] for r in context] == ['CVE-2026-0001', 'CVE-2026-0003', 'CVE-2026-0002', 'CVE-2026-0004']
 
 
 def test_keyword_ties_broken_by_public_evidence_not_watchlist() -> None:
@@ -37,7 +38,19 @@ def test_keyword_ties_broken_by_public_evidence_not_watchlist() -> None:
     context = find_context('Is OpenSSL being exploited?', ranked)
 
     # KEV beats the watchlist-boosted CVE: selection never uses local scores
-    assert [r['cve_id'] for r in context] == ['CVE-2026-0003', 'CVE-2026-0002']
+    assert [r['cve_id'] for r in context][:2] == ['CVE-2026-0003', 'CVE-2026-0002']
+
+
+def test_exploitation_question_always_includes_exploited_cves() -> None:
+    # Regression: "most"/"right" used to match "access rights" descriptions and crowd out
+    # every KEV CVE, so the model wrongly said none of the CVEs were exploited
+    noise = [_row(f'CVE-2026-1{i:03}', 'Improper access rights in the most common plugin.', epss=0.5)
+             for i in range(20)]
+    exploited = _row('CVE-2026-9999', 'Remote code execution in a VPN appliance.', in_kev=True, epss=0.97)
+
+    context = find_context('Which of these is most actively exploited right now?', noise + [exploited])
+
+    assert 'CVE-2026-9999' in [r['cve_id'] for r in context]
 
 
 def test_generic_question_falls_back_to_most_exploited() -> None:
