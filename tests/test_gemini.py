@@ -81,3 +81,18 @@ def test_models_to_try_skips_duplicates(monkeypatch) -> None:
     monkeypatch.setattr(config, 'GEMINI_FALLBACK_MODELS', ['lite', 'main'])
 
     assert gemini.models_to_try('main') == ['main', 'lite']
+    assert gemini.models_to_try('lite', ['main', 'lite']) == ['lite', 'main']
+
+
+def test_ask_uses_lite_first_then_main_model(monkeypatch) -> None:
+    from mavis.briefing.ask import answer_question
+
+    calls: list[str] = []
+    monkeypatch.setattr(config, 'GEMINI_MODEL', 'flash')
+    monkeypatch.setattr(config, 'GEMINI_FALLBACK_MODELS', ['lite'])
+    reply = SimpleNamespace(text='Patch it.', cited_cve_ids=[])
+    monkeypatch.setattr(gemini, 'gemini_client', lambda: _fake_client({'lite': _overloaded(), 'flash': reply}, calls))
+
+    answer = answer_question({'question': 'q', 'cves': []}, 'lite')
+
+    assert calls == ['lite', 'flash'] and answer['model'] == 'flash'

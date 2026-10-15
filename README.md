@@ -70,7 +70,7 @@ The page refreshes its data every minute. The status strip shows one dot per fee
 
 The Ask box (under the digest) sends your question to Gemini through the backend, together with the public fields of up to 8 stored CVEs picked locally: CVE IDs named in the question first, then descriptions containing the question's words, with ties broken by KEV, EPSS and CVSS (never by watchlist matches or local scores). "Ask MAVIS about this" on a watchlist hit pre-fills only the CVE ID. The question itself is sent as typed, so naming your own products in it is your choice.
 
-If the main Gemini model is overloaded (503) or out of quota (429), MAVIS switches to `GEMINI_FALLBACK_MODELS` (default `gemini-flash-lite-latest`) and shows which model answered.
+`brief` uses `GEMINI_MODEL` (default `gemini-flash-latest`): it runs once and is cached, so it gets the stronger writer. Ask uses `GEMINI_ASK_MODEL` (default `gemini-flash-lite-latest`): answers are short and live, and Flash-Lite is faster with a higher free-tier limit (15 vs 5 requests per minute). If a model is overloaded (503, one retry) or out of quota (429, no retry), MAVIS moves to the other model and shows which one answered.
 
 "Brief me" reads the digest summary aloud with the browser's Web Speech API. Edge's "Natural" voices sound best; they are online voices, so only Gemini's summary is ever spoken (never watchlist matches or scores). The design spec is `.claude/MAVIS_DESIGN.md`.
 

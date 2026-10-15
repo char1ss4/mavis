@@ -162,7 +162,7 @@ def post_ask(request: AskRequest) -> AskResponse:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     try:
-        answer = answer_question(payload, config.GEMINI_MODEL)
+        answer = answer_question(payload, config.GEMINI_ASK_MODEL)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"The answer couldn't be generated ({exc})") from exc
     return AskResponse(**answer, generated_at=datetime.now())

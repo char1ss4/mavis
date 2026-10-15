@@ -23,26 +23,31 @@ def gemini_client() -> Any:
     from google import genai
     from google.genai import types
 
-    # Two quick retries (2s, 4s); after that it's faster to switch to the fallback model
+    # One quick retry (after 2s), then the fallback model. Free-tier Flash allows only
+    # 5 requests a minute, so more retries could hit that limit on their own.
     return genai.Client(
         api_key=config.GEMINI_API_KEY,
         http_options=types.HttpOptions(
             timeout=30_000,  # ms
             retry_options=types.HttpRetryOptions(
-                attempts=3, initial_delay=2.0, exp_base=2.0, http_status_codes=list(OVERLOADED_CODES),
+                attempts=2, initial_delay=2.0, http_status_codes=list(OVERLOADED_CODES),
             ),
         ),
     )
 
 
-def models_to_try(model: str) -> list[str]:
-    """The requested model first, then the configured fallbacks (without repeats)."""
-    return list(dict.fromkeys([model, *config.GEMINI_FALLBACK_MODELS]))
+def models_to_try(model: str, fallbacks: list[str] | None = None) -> list[str]:
+    """The requested model first, then the fallbacks (default: GEMINI_FALLBACK_MODELS), without repeats."""
+    return list(dict.fromkeys([model, *(config.GEMINI_FALLBACK_MODELS if fallbacks is None else fallbacks)]))
 
 
-def generate_structured(model: str, prompt: str, system_instruction: str,
-                        schema: type[BaseModel]) -> tuple[BaseModel, str]:
+def generate_structured(model: str, prompt: str, system_instruction: str, schema: type[BaseModel],
+                        fallbacks: list[str] | None = None) -> tuple[BaseModel, str]:
     """Call Gemini with a response schema, moving to a fallback model if one is overloaded.
+
+    Args:
+        fallbacks: Models to try, in order, if ``model`` is overloaded or out of
+            quota. Defaults to GEMINI_FALLBACK_MODELS.
 
     Returns:
         The parsed response (an instance of ``schema``) and the model that produced it.
@@ -56,7 +61,7 @@ def generate_structured(model: str, prompt: str, system_instruction: str,
     # Keep a reference: a Client closes its HTTP connection when garbage-collected
     client = gemini_client()
     last_error: Exception | None = None
-    for candidate in models_to_try(model):
+    for candidate in models_to_try(model, fallbacks):
         try:
             response = client.models.generate_content(
                 model=candidate,

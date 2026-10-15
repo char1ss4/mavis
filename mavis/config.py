@@ -16,7 +16,11 @@ load_dotenv()
 
 NVD_API_KEY: str = os.getenv("NVD_API_KEY", "")
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+# `brief` uses GEMINI_MODEL: it runs once and is cached, so it gets the stronger writer.
+# The HUD's Ask box uses GEMINI_ASK_MODEL: answers are short, live and more frequent, and
+# Flash-Lite is faster with a higher free-tier rate limit (15 vs 5 requests per minute).
 GEMINI_MODEL: str = os.getenv("GEMINI_MODEL") or "gemini-flash-latest"
+GEMINI_ASK_MODEL: str = os.getenv("GEMINI_ASK_MODEL") or "gemini-flash-lite-latest"
 # Tried in order when the main model is overloaded (comma-separated)
 GEMINI_FALLBACK_MODELS: list[str] = [
     m.strip() for m in (os.getenv("GEMINI_FALLBACK_MODELS") or "gemini-flash-lite-latest").split(",") if m.strip()

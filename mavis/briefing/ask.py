@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from mavis import config
 from mavis.briefing.gemini import generate_structured
 
 MAX_CONTEXT_CVES = 8
@@ -104,7 +105,10 @@ def answer_question(payload: dict[str, Any], model: str) -> dict[str, Any]:
         the payload (made up by the model) are dropped. ``model`` is the model that
         answered, which differs from ``model`` if the requested one was overloaded.
     """
-    parsed, model_used = generate_structured(model, build_prompt(payload), _SYSTEM_INSTRUCTION, AskAnswer)
+    # Ask runs on Flash-Lite by default, so fall back to the main model (and then the usual fallbacks)
+    fallbacks = [config.GEMINI_MODEL, *config.GEMINI_FALLBACK_MODELS]
+    parsed, model_used = generate_structured(model, build_prompt(payload), _SYSTEM_INSTRUCTION, AskAnswer,
+                                             fallbacks)
     sent = {record['cve_id']: record for record in payload['cves']}
     cited = [sent[cve_id] for cve_id in dict.fromkeys(parsed.cited_cve_ids) if cve_id in sent]
     return {
