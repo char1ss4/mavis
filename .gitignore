@@ -19,6 +19,8 @@ watchlist.yaml
 CLAUDE.local.md
 .claude/settings.json
 .claude/settings.local.json
+.claude/DEMO_HANDOFF.md
+.claude/DEMO_PREP.md
 
 # Local DB dump for the demo (large, contains a full data snapshot)
 db/seed.sql
